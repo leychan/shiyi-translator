@@ -1,6 +1,6 @@
 # shiyi-translator（拾译）
 
-Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.3，优先在 KDE Wayland 上验证。
+Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.4，优先在 KDE Wayland 上验证。
 
 ## 名字的含义
 
@@ -15,6 +15,7 @@ Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版
 - 输入翻译，自动检测原文语言，选择目标语言，复制结果。
 - 四种接口：Chat Completions 兼容协议、DeepL、LibreTranslate、百度通用翻译。
 - 同一接口可以配置多个实例，多个服务并行返回，单个服务失败不影响其他服务。
+- 服务管理卡片展示启用状态与接口信息；编辑表单分组配置，测试与保存操作固定在底部，适配小窗口和深色模式。
 - 兼容接口支持 SSE 流式译文，也可关闭流式输出。
 - 取消、重试、45 秒超时、内存缓存；新请求不会被旧结果覆盖。
 - 本机最近 100 条历史记录，可禁用保存或清空。

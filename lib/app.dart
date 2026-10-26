@@ -781,144 +781,340 @@ class _HomePageState extends State<HomePage> {
     ),
   );
 
-  Widget _providers() => ListView(
-    children: [
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              '${app.settings.providers.length} 个已连接的服务',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-          ),
-          FilledButton.icon(
-            onPressed: () => _editProvider(),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('添加服务'),
-          ),
-        ],
-      ),
-      const SizedBox(height: 22),
-      if (app.settings.providers.isEmpty)
-        Surface(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '选择你的第一个翻译服务',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  '使用自己的接口，控制模型、费用和翻译风格。',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 24),
-                for (final kind in ProviderKind.values)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                      leading: ProviderIcon(kind: kind),
-                      title: Text(
-                        kind.label,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        switch (kind) {
-                          ProviderKind.compatible => '自定义模型、API 地址，支持流式译文',
-                          ProviderKind.deepl => '专业翻译接口，支持 Free / Pro 地址',
-                          ProviderKind.libreTranslate =>
-                            '连接自托管或其他 LibreTranslate 实例',
-                          ProviderKind.baidu => '使用 APP ID 和密钥连接百度通用翻译',
-                        },
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 18,
-                      ),
-                      onTap: () => _editProvider(kind: kind),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      for (final provider in app.settings.providers)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: Surface(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
+  Widget _providers() {
+    final colors = Theme.of(context).colorScheme;
+    final muted = colors.onSurfaceVariant;
+    return ListView(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ProviderIcon(kind: provider.kind),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _serviceTag(
+                        Icons.layers_outlined,
+                        '${app.settings.providers.length} 个服务',
+                      ),
+                      _serviceTag(
+                        Icons.check_circle_outline_rounded,
+                        '${app.enabledProviders.length} 个启用',
+                        highlighted: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '启用的服务会并行翻译，各自展示结果。',
+                    style: TextStyle(fontSize: 12, color: muted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            FilledButton.icon(
+              onPressed: () => _editProvider(),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 15,
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 19),
+              label: const Text('添加服务', style: TextStyle(fontSize: 13)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (app.settings.providers.isEmpty)
+          Surface(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '连接你的第一个服务',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '选择接口类型，填入自己的配置，即可开始翻译。',
+                    style: TextStyle(fontSize: 12, color: muted, height: 1.6),
+                  ),
+                  const SizedBox(height: 22),
+                  LayoutBuilder(
+                    builder: (context, constraints) => Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
-                        Text(
-                          provider.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
+                        for (final kind in ProviderKind.values)
+                          SizedBox(
+                            width: constraints.maxWidth >= 620
+                                ? (constraints.maxWidth - 12) / 2
+                                : constraints.maxWidth,
+                            child: Material(
+                              color: colors.surfaceContainerLowest,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: BorderSide(
+                                  color: Theme.of(context).dividerColor,
+                                ),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () => _editProvider(kind: kind),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      ProviderIcon(kind: kind, size: 34),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              kind == ProviderKind.compatible
+                                                  ? 'Chat Completions'
+                                                  : kind.label,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              switch (kind) {
+                                                ProviderKind.compatible =>
+                                                  '兼容接口 · 自定义模型与流式译文',
+                                                ProviderKind.deepl =>
+                                                  '专业翻译 · 支持 Free / Pro',
+                                                ProviderKind.libreTranslate =>
+                                                  '自由部署 · 连接自己的翻译实例',
+                                                ProviderKind.baidu =>
+                                                  '百度翻译 · APP ID 与密钥接入',
+                                              },
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: muted,
+                                                height: 1.6,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.arrow_outward_rounded,
+                                        size: 16,
+                                        color: muted,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          '${provider.kind.label}${provider.model.isEmpty ? '' : ' · ${provider.model}'}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          provider.endpoint,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
                       ],
                     ),
-                  ),
-                  Switch(
-                    value: provider.enabled,
-                    onChanged: (enabled) =>
-                        app.toggleProvider(provider, enabled),
-                  ),
-                  IconButton(
-                    tooltip: '编辑服务',
-                    onPressed: () => _editProvider(provider: provider),
-                    icon: const Icon(Icons.edit_outlined, size: 19),
-                  ),
-                  IconButton(
-                    tooltip: '删除服务',
-                    onPressed: () => _removeProvider(provider),
-                    icon: const Icon(Icons.delete_outline, size: 20),
                   ),
                 ],
               ),
             ),
           ),
+        for (final provider in app.settings.providers)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _providerCard(provider),
+          ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.shield_outlined, size: 15, color: muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '每个接口可添加多个配置，密钥通过系统凭据存储保护。',
+                style: TextStyle(fontSize: 11, color: muted, height: 1.6),
+              ),
+            ),
+          ],
         ),
-      const SizedBox(height: 16),
-      const Text(
-        '每个服务可以添加多个配置。API Key 存储在系统钥匙串中。',
-        style: TextStyle(fontSize: 11, color: Colors.grey),
+      ],
+    );
+  }
+
+  Widget _serviceTag(IconData icon, String text, {bool highlighted = false}) {
+    final colors = Theme.of(context).colorScheme;
+    final color = highlighted ? colors.primary : colors.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: highlighted ? 0.08 : 0.05),
+        borderRadius: BorderRadius.circular(8),
       ),
-    ],
-  );
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 11, color: color),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _providerCard(ProviderConfig provider) {
+    final colors = Theme.of(context).colorScheme;
+    final muted = colors.onSurfaceVariant;
+    final metadata = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _serviceTag(
+          Icons.hub_outlined,
+          provider.kind == ProviderKind.compatible
+              ? '兼容接口'
+              : provider.kind.label,
+        ),
+        if (provider.model.isNotEmpty)
+          _serviceTag(Icons.auto_awesome_outlined, provider.model),
+        if (provider.hasApiKey)
+          _serviceTag(Icons.lock_outline_rounded, '已配置密钥'),
+      ],
+    );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Tooltip(
+          message: '编辑服务',
+          child: OutlinedButton.icon(
+            onPressed: () => _editProvider(provider: provider),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              side: BorderSide(color: Theme.of(context).dividerColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: const Icon(Icons.tune_rounded, size: 16),
+            label: const Text('编辑', style: TextStyle(fontSize: 12)),
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: '删除服务',
+          onPressed: () => _removeProvider(provider),
+          icon: Icon(Icons.delete_outline_rounded, size: 19, color: muted),
+        ),
+      ],
+    );
+    return Surface(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                ProviderIcon(kind: provider.kind, size: 40),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        provider.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        provider.enabled ? '已启用 · 参与并行翻译' : '已暂停 · 保留当前配置',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: provider.enabled ? colors.primary : muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Tooltip(
+                  message: provider.enabled ? '停用服务' : '启用服务',
+                  child: Switch(
+                    value: provider.enabled,
+                    onChanged: (enabled) =>
+                        app.toggleProvider(provider, enabled),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 17),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              decoration: BoxDecoration(
+                color: muted.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.link_rounded, size: 16, color: muted),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      provider.endpoint,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) => constraints.maxWidth >= 590
+                  ? Row(
+                      children: [
+                        Expanded(child: metadata),
+                        const SizedBox(width: 12),
+                        actions,
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        metadata,
+                        const SizedBox(height: 12),
+                        Align(alignment: Alignment.centerRight, child: actions),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _history() => Column(
     children: [

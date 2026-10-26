@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:just_translator/app.dart';
 import 'package:just_translator/app_controller.dart';
 import 'package:just_translator/models.dart';
 import 'package:just_translator/services/translation_service.dart';
@@ -52,13 +53,18 @@ void main() {
     WidgetTester tester, {
     ProviderKind kind = ProviderKind.compatible,
     ProviderConfig? existing,
+    Size size = const Size(900, 900),
+    bool dark = false,
   }) async {
-    tester.view.physicalSize = const Size(900, 900);
+    tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       MaterialApp(
+        theme: TranslatorApp.buildTheme(
+          dark ? Brightness.dark : Brightness.light,
+        ),
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(
@@ -81,9 +87,44 @@ void main() {
   }
 
   Future<void> fill(WidgetTester tester, String label, String value) async {
-    await tester.enterText(find.widgetWithText(TextFormField, label), value);
+    final key = switch (label) {
+      '显示名称' => 'name',
+      '模型名称' => 'model',
+      '服务地址' => 'endpoint',
+      'APP ID' => 'app-id',
+      _ => 'api-key',
+    };
+    final input = find.byKey(Key('provider-$key'));
+    await tester.ensureVisible(input);
+    await tester.enterText(input, value);
     await tester.pump();
   }
+
+  testWidgets(
+    'compact dark editor keeps actions visible while the form scrolls',
+    (tester) async {
+      await open(tester, size: const Size(600, 540), dark: true);
+      expect(find.text('测试连接').hitTestable(), findsOneWidget);
+      expect(
+        find.byKey(const Key('provider-save')).hitTestable(),
+        findsOneWidget,
+      );
+      await fill(tester, '模型名称', 'compact-model');
+      await fill(tester, 'API Key（按服务要求填写）', 'test-key');
+      await tester.tap(find.text('测试连接'));
+      await tester.pump();
+      translator.calls.single.result.complete('你好，世界！');
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('测试成功'));
+      await tester.pumpAndSettle();
+      expect(find.text('测试成功').hitTestable(), findsOneWidget);
+      expect(
+        find.byKey(const Key('provider-save')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('tests unsaved Baidu credentials without persisting or history', (
     tester,
@@ -105,7 +146,7 @@ void main() {
     expect(find.text('正在测试…'), findsOneWidget);
     expect(
       tester
-          .widget<FilledButton>(find.widgetWithText(FilledButton, '保存服务'))
+          .widget<FilledButton>(find.byKey(const Key('provider-save')))
           .onPressed,
       isNull,
     );

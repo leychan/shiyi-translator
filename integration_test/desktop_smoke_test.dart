@@ -267,12 +267,9 @@ void main() {
       await tester.tap(find.text('添加翻译服务'));
       await tester.pumpAndSettle();
       await screenshot('02-add-service');
+      await tester.enterText(find.byKey(const Key('provider-name')), '本地翻译服务');
       await tester.enterText(
-        find.widgetWithText(TextFormField, '显示名称'),
-        '本地翻译服务',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, '模型名称'),
+        find.byKey(const Key('provider-model')),
         'test-model',
       );
       await tester.tap(find.text('测试连接'));
@@ -287,6 +284,30 @@ void main() {
       expect(app.settings.providers.single.name, '本地翻译服务');
       app.goTo(1);
       await screenshot('03-services');
+      await tester.tap(find.byTooltip('编辑服务'));
+      await tester.pumpAndSettle();
+      await screenshot('12-service-editor');
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      app.settings.darkMode = true;
+      app.settingsChanged();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('编辑服务'));
+      await tester.pumpAndSettle();
+      await screenshot('13-service-editor-dark');
+      await windowManager.setSize(const Size(600, 540));
+      await tester.pumpAndSettle();
+      await screenshot('14-service-editor-compact');
+      expect(
+        find.byKey(const Key('provider-save')).hitTestable(),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      await windowManager.setSize(const Size(1180, 780));
+      app.settings.darkMode = false;
+      app.settingsChanged();
+      await tester.pumpAndSettle();
       app.settings.history = [
         HistoryEntry(
           id: 'test',

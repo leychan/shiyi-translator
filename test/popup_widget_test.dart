@@ -145,16 +145,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('请填写百度翻译 APP ID'), findsOneWidget);
       expect(find.text('请填写百度翻译密钥'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('provider-name')), '百度翻译');
       await tester.enterText(
-        find.widgetWithText(TextFormField, '显示名称'),
-        '百度翻译',
-      );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'APP ID'),
+        find.byKey(const Key('provider-app-id')),
         'test-app',
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, '密钥（Secret Key）'),
+        find.byKey(const Key('provider-api-key')),
         'test-secret',
       );
       await tester.tap(find.text('保存服务'));
