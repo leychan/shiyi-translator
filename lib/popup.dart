@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'app_controller.dart';
+import 'app_identity.dart';
 import 'models.dart';
 import 'popup_placement.dart';
 import 'services/popup_service.dart';
@@ -21,7 +22,7 @@ class PopupWindow extends ChangeNotifier with WindowListener {
     windowManager.addListener(this);
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
-        title: 'Just Translator · 翻译',
+        title: '$appName · 翻译',
         size: Size(480, 700),
         minimumSize: Size(360, 380),
         center: false,
@@ -135,7 +136,7 @@ class PopupApp extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) => MaterialApp(
-      title: 'Just Translator · 翻译',
+      title: '$appName · 翻译',
       debugShowCheckedModeBanner: false,
       locale: const Locale('zh'),
       supportedLocales: const [Locale('zh'), Locale('en')],

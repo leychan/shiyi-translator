@@ -1,8 +1,14 @@
 [Desktop Entry]
 Type=Application
-Name=Just Translator
-Name[zh_CN]=Just Translator 翻译
+Name=Shiyi Translator
+Name[zh_CN]=拾译
+Name[zh_TW]=拾譯
+GenericName=Translator
+GenericName[zh_CN]=翻译工具
 Comment=Translate selected text with your favorite services
+Comment[zh_CN]=拾起文字，读懂世界。支持划词翻译和多接口服务。
+Keywords=Shiyi;Translator;Translation;
+Keywords[zh_CN]=拾译;翻译;划词;Shiyi;
 Exec=just_translator
 Icon=dev.justtranslator.just_translator
 Terminal=false

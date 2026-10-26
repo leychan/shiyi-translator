@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_controller.dart';
+import 'app_identity.dart';
 import 'models.dart';
 import 'services/desktop_service.dart';
 import 'widgets/provider_dialog.dart';
@@ -20,7 +21,7 @@ class TranslatorApp extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) => MaterialApp(
-      title: 'Just Translator',
+      title: appTitle,
       debugShowCheckedModeBanner: false,
       locale: const Locale('zh'),
       supportedLocales: const [Locale('zh'), Locale('en')],
@@ -198,13 +199,27 @@ class _HomePageState extends State<HomePage> {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  'Just\nTranslator',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                    fontSize: 16,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      appName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                        fontSize: 21,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      appEnglishName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -293,7 +308,7 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 8),
         const Text(
-          '  VERSION 0.3.1',
+          '  VERSION $appVersion',
           style: TextStyle(fontSize: 9, color: Colors.grey, letterSpacing: 1.8),
         ),
       ],
@@ -1109,7 +1124,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           const Expanded(
             child: Text(
-              'Just Translator 0.3.1 · 为理解而生',
+              '$appName $appVersion · $appTagline',
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),

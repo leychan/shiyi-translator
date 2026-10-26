@@ -6,6 +6,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../app_controller.dart';
+import '../app_identity.dart';
 import 'instance_service.dart';
 import 'selection_service.dart';
 import 'shortcut_service.dart';
@@ -48,7 +49,7 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
         size: Size(1180, 780),
         minimumSize: Size(600, 540),
         center: true,
-        title: 'Just Translator',
+        title: appTitle,
       ),
       () async {
         if (showMain) {
@@ -65,16 +66,16 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
       );
       // Linux AppIndicator exposes its menu without the tooltip method.
       if (!Platform.isLinux) {
-        await trayManager.setToolTip('Just Translator');
+        await trayManager.setToolTip(appTitle);
       }
       await trayManager.setContextMenu(
         Menu(
           items: [
-            MenuItem(key: 'show', label: '打开 Just Translator'),
+            MenuItem(key: 'show', label: '打开$appName'),
             MenuItem(key: 'selection', label: '翻译选中文字'),
             MenuItem(key: 'clipboard', label: '翻译剪贴板'),
             MenuItem.separator(),
-            MenuItem(key: 'exit', label: '退出'),
+            MenuItem(key: 'exit', label: '退出$appName'),
           ],
         ),
       );

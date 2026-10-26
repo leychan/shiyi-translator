@@ -6,6 +6,7 @@ import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'app_controller.dart';
+import 'app_identity.dart';
 import 'popup.dart';
 import 'services/desktop_service.dart';
 import 'services/instance_service.dart';
@@ -85,13 +86,13 @@ Future<void> main(List<String> arguments) async {
       );
     });
   } catch (error) {
-    stderr.writeln('Just Translator startup failed: ${error.runtimeType}');
+    stderr.writeln('$appEnglishName startup failed: ${error.runtimeType}');
     runApp(
       MaterialApp(
         home: Scaffold(
           body: Center(
             child: SelectableText(
-              '无法启动 Just Translator。\n请检查应用数据目录权限，或稍后重试。\n错误类型：${error.runtimeType}',
+              '无法启动$appName。\n请检查应用数据目录权限，或稍后重试。\n错误类型：${error.runtimeType}',
             ),
           ),
         ),

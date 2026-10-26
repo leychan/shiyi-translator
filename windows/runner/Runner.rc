@@ -89,11 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+            // Storage plugins use CompanyName and ProductName as directory IDs.
+            // Keep them stable so existing settings and encrypted keys remain available.
             VALUE "CompanyName", "dev.justtranslator" "\0"
-            VALUE "FileDescription", "just_translator" "\0"
+            VALUE "FileDescription", "Shiyi Translator" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "just_translator" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 dev.justtranslator. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Shiyi Translator. All rights reserved." "\0"
             VALUE "OriginalFilename", "just_translator.exe" "\0"
             VALUE "ProductName", "just_translator" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

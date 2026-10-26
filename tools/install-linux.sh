@@ -40,4 +40,4 @@ PY
 if command -v update-desktop-database >/dev/null; then
   update-desktop-database "$applications_dir"
 fi
-echo "已安装到 $install_dir，可从应用菜单启动 Just Translator。"
+echo "已安装到 $install_dir，可从应用菜单启动拾译（Shiyi Translator）。"

@@ -1,7 +1,7 @@
 name: just_translator
-description: "A focused, cross-platform desktop translator."
+description: "Shiyi Translator (拾译), a focused, cross-platform desktop translator."
 publish_to: 'none'
-version: 0.3.1+5
+version: 0.3.2+6
 
 environment:
   sdk: ^3.13.5

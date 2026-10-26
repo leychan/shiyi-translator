@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+import '../app_identity.dart';
+
 class SelectionCapture {
   const SelectionCapture(this.text, this.label);
   final String text;
@@ -46,7 +48,7 @@ class SelectionService {
       } on PlatformException catch (error) {
         if (error.code == 'accessibility') {
           throw const SelectionException(
-            '请在系统设置 → 隐私与安全性 → 辅助功能中允许 Just Translator 取词。',
+            '请在系统设置 → 隐私与安全性 → 辅助功能中允许$appName（$appEnglishName）取词。',
           );
         }
       }

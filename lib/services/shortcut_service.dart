@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dbus/dbus.dart';
 
+import '../app_identity.dart';
 import 'selection_service.dart';
 
 class ShortcutService {
@@ -135,7 +136,7 @@ class ShortcutService {
         DBusStruct([
           const DBusString('translate-selection'),
           DBusDict.stringVariant({
-            'description': const DBusString('Just Translator · 翻译选中文字'),
+            'description': const DBusString('$appName · 翻译选中文字'),
             'preferred_trigger': const DBusString('CTRL+ALT+space'),
           }),
         ]),
