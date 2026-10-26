@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=Just Translator
+Name[zh_CN]=Just Translator 翻译
+Comment=Translate selected text with your favorite services
+Exec=just_translator
+Icon=dev.justtranslator.just_translator
+Terminal=false
+Categories=Utility;Education;
+StartupWMClass=dev.justtranslator.just_translator
+Actions=TranslateSelection;TranslateClipboard;
+
+[Desktop Action TranslateSelection]
+Name=Translate Selection
+Name[zh_CN]=翻译选中文字
+Exec=just_translator --selection
+
+[Desktop Action TranslateClipboard]
+Name=Translate Clipboard
+Name[zh_CN]=翻译剪贴板
+Exec=just_translator --clipboard
