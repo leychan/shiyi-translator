@@ -7,7 +7,58 @@ import 'package:just_translator/widgets/provider_dialog.dart';
 
 import 'support.dart';
 
+class MeasuringPopupWindow extends PopupWindow {
+  double? contentHeight;
+  @override
+  Future<void> fitContent(double height) async => contentHeight = height;
+}
+
 void main() {
+  testWidgets(
+    'popup measures real content, grows for text and shrinks on collapse',
+    (tester) async {
+      tester.view.physicalSize = const Size(480, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final app = AppController(
+        settings: AppSettings(providers: [provider()]),
+        store: MemoryStore(),
+      );
+      final window = MeasuringPopupWindow();
+      addTearDown(app.dispose);
+      addTearDown(window.dispose);
+      app.input = 'Hello';
+      final result = TranslationResult(provider: provider())
+        ..text = '你好'
+        ..status = ResultStatus.complete;
+      app.results = [result];
+      await tester.pumpWidget(PopupApp(controller: app, window: window));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      final short = window.contentHeight!;
+      expect(short, inExclusiveRange(250, 500));
+      result.text = List.filled(80, '一段需要滚动显示的译文。').join('\n');
+      app.settingsChanged();
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(window.contentHeight!, greaterThan(2000));
+      await tester.tap(find.byKey(const ValueKey('popup-result-test')));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(window.contentHeight!, lessThan(short));
+      await tester.tap(find.byKey(const ValueKey('popup-result-test')));
+      await tester.pumpAndSettle();
+      result.text = '你好';
+      app.settingsChanged();
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(window.contentHeight!, closeTo(short, 1));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets(
     'popup presents independent translation UI with collapsible providers',
     (tester) async {

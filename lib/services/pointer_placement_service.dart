@@ -197,6 +197,7 @@ try {
   var anchor = ${jsonEncode(anchor.toJson())};
   var targetPid = $popupPid;
   var positioned = false;
+  var expectedX, expectedY;
   function matches(window) {
     return window && Number(window.pid) === targetPid &&
       String(window.resourceClass) === 'dev.justtranslator.just_translator';
@@ -206,17 +207,43 @@ try {
     var area = anchor;
     var geometry = window.frameGeometry;
     var width = Math.min(geometry.width > 0 ? geometry.width : 480, area.width - 16);
-    var height = Math.min(geometry.height > 0 ? geometry.height : 700, area.height - 16);
+    var height = Math.min(geometry.height > 0 ? geometry.height : 360, area.height - 16);
     var x = anchor.x + 14, y = anchor.y + 18;
     if (x + width > area.left + area.width - 8) x = anchor.x - width - 14;
     if (y + height > area.top + area.height - 8) y = anchor.y - height - 18;
     x = Math.max(area.left + 8, Math.min(x, area.left + area.width - width - 8));
     y = Math.max(area.top + 8, Math.min(y, area.top + area.height - height - 8));
-    window.frameGeometry = {x:Math.round(x),y:Math.round(y),width:width,height:height};
+    expectedX = Math.round(x); expectedY = Math.round(y);
+    window.frameGeometry = {x:expectedX,y:expectedY,width:width,height:height};
     positioned = true;
   }
   function watch(window) {
     if (!matches(window)) return;
+    function snapshot() {
+      var g = window.frameGeometry;
+      return {x:g.x,y:g.y,width:g.width,height:g.height};
+    }
+    var previous = snapshot();
+    var followsAnchor = true;
+    window.frameGeometryChanged.connect(function() {
+      var geometry = snapshot();
+      var resized = geometry.width !== previous.width || geometry.height !== previous.height;
+      var moved = geometry.x !== previous.x || geometry.y !== previous.y;
+      previous = geometry;
+      if (moved && positioned &&
+          (Math.abs(geometry.x - expectedX) > 1 || Math.abs(geometry.y - expectedY) > 1)) {
+        followsAnchor = false;
+      }
+      if (!resized) return;
+      if (followsAnchor) {
+        place(window, true);
+      } else {
+        // Keep a manually dragged popup at its new position, clamping only at edges.
+        expectedX = Math.max(anchor.left + 8, Math.min(geometry.x, anchor.left + anchor.width - geometry.width - 8));
+        expectedY = Math.max(anchor.top + 8, Math.min(geometry.y, anchor.top + anchor.height - geometry.height - 8));
+        window.frameGeometry = {x:expectedX,y:expectedY,width:geometry.width,height:geometry.height};
+      }
+    });
     window.windowShown.connect(function() { place(window, true); });
     place(window, true);
   }

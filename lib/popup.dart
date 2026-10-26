@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
@@ -17,14 +19,20 @@ class PopupWindow extends ChangeNotifier with WindowListener {
   bool pinned = false;
   bool _disposed = false;
   int _showGeneration = 0;
+  bool _initialized = false;
+  bool _positionedByCompositor = false;
+  double? _contentHeight;
+  PopupAnchor? _anchor;
+  Rect? _workArea;
+  Future<void> _sizing = Future.value();
 
   Future<void> initialize() async {
     windowManager.addListener(this);
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
         title: '$appName · 翻译',
-        size: Size(480, 700),
-        minimumSize: Size(360, 380),
+        size: Size(480, 360),
+        minimumSize: Size(360, 160),
         center: false,
         skipTaskbar: true,
         titleBarStyle: TitleBarStyle.hidden,
@@ -35,6 +43,55 @@ class PopupWindow extends ChangeNotifier with WindowListener {
         await windowManager.setPreventClose(true);
       },
     );
+    try {
+      final display = await screenRetriever.getPrimaryDisplay();
+      _workArea =
+          (display.visiblePosition ?? Offset.zero) &
+          (display.visibleSize ?? display.size);
+    } catch (_) {
+      // Use a conservative height cap if the desktop cannot report its work area.
+    }
+    _initialized = true;
+    await fitContent(_contentHeight ?? 360);
+  }
+
+  /// Fit the native window to the measured Flutter content, keeping long text scrollable.
+  Future<void> fitContent(double height) {
+    if (_disposed || !height.isFinite || height <= 0) return Future.value();
+    _contentHeight = height.ceilToDouble();
+    if (!_initialized) return Future.value();
+    return _sizing = _sizing.catchError((Object _) {}).then((_) async {
+      if (_disposed) return;
+      final current = await windowManager.getBounds();
+      final maximum = math.max(160.0, (_workArea?.height ?? 816) - 16);
+      final size = Size(current.width, _contentHeight!.clamp(160.0, maximum));
+      if (_disposed || (current.height - size.height).abs() < 1) return;
+      if (_positionedByCompositor) {
+        // KWin follows size changes without relying on unsupported Wayland moves.
+        await windowManager.setSize(size);
+      } else {
+        var position = current.topLeft;
+        final area = _workArea;
+        if (_anchor != null &&
+            (position - popupBoundsNear(_anchor!, current.size).topLeft)
+                    .distance <
+                2) {
+          position = popupBoundsNear(_anchor!, size).topLeft;
+        } else if (area != null) {
+          position = Offset(
+            position.dx.clamp(
+              area.left + 8,
+              math.max(area.left + 8, area.right - size.width - 8),
+            ),
+            position.dy.clamp(
+              area.top + 8,
+              math.max(area.top + 8, area.bottom - size.height - 8),
+            ),
+          );
+        }
+        await windowManager.setBounds(position & size);
+      }
+    });
   }
 
   Future<void> show({
@@ -42,14 +99,20 @@ class PopupWindow extends ChangeNotifier with WindowListener {
     Future<bool> Function()? preparePosition,
   }) async {
     final generation = ++_showGeneration;
+    _anchor = anchor;
+    _positionedByCompositor = false;
+    if (anchor != null) _workArea = anchor.workArea;
+    await fitContent(_contentHeight ?? 360);
+    if (generation != _showGeneration || _disposed) return;
     if (anchor != null) {
       final currentSize = await windowManager.getSize();
-      final size = currentSize.width >= 360 && currentSize.height >= 380
+      final size = currentSize.width >= 360 && currentSize.height >= 160
           ? currentSize
-          : const Size(480, 700);
+          : const Size(480, 360);
       final target = popupBoundsNear(anchor, size);
       final compositor = await preparePosition?.call() ?? false;
       if (generation != _showGeneration || _disposed) return;
+      _positionedByCompositor = compositor;
       if (!compositor) {
         if (target.size != currentSize) {
           await windowManager.setSize(target.size);
@@ -68,6 +131,11 @@ class PopupWindow extends ChangeNotifier with WindowListener {
     pinned = !pinned;
     await windowManager.setAlwaysOnTop(pinned);
     notifyListeners();
+  }
+
+  @override
+  void onWindowResize() {
+    if (!_disposed) notifyListeners();
   }
 
   @override
@@ -174,6 +242,36 @@ class _TranslationPopupState extends State<TranslationPopup> {
   late final TextEditingController _input;
   final _scroll = ScrollController();
   final _collapsed = <String>{};
+  final _contentKey = GlobalKey();
+  bool _measureScheduled = false;
+  Timer? _fitTimer;
+
+  void _scheduleFit() {
+    if (_measureScheduled || widget.window == null) return;
+    _measureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureScheduled = false;
+      if (!mounted) return;
+      // Throttle streaming updates while always measuring the latest layout.
+      _fitTimer ??= Timer(const Duration(milliseconds: 80), () {
+        _fitTimer = null;
+        if (!mounted) return;
+        final content =
+            _contentKey.currentContext?.findRenderObject() as RenderBox?;
+        if (content == null || !content.hasSize) return;
+        unawaited(
+          widget.window!.fitContent(content.size.height + 44).catchError((
+            Object error,
+          ) {
+            debugPrint(
+              'Unable to resize translation popup: ${error.runtimeType}',
+            );
+          }),
+        );
+      });
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -199,6 +297,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
   void dispose() {
     app.removeListener(_sync);
     widget.window?.removeListener(_windowChanged);
+    _fitTimer?.cancel();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -212,121 +311,143 @@ class _TranslationPopupState extends State<TranslationPopup> {
       : const Color(0xFFE3E5EA);
 
   @override
-  Widget build(BuildContext context) => CallbackShortcuts(
-    bindings: {
-      const SingleActivator(LogicalKeyboardKey.enter, control: true): () =>
-          unawaited(app.translate()),
-      const SingleActivator(LogicalKeyboardKey.enter, meta: true): () =>
-          unawaited(app.translate()),
-      const SingleActivator(LogicalKeyboardKey.escape): () =>
-          widget.window?.hide(),
-    },
-    child: Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Material(
-        color: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Theme.of(context).dividerColor, width: 1.2),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            DragToMoveArea(
-              child: SizedBox(
-                height: 44,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        tooltip: widget.window?.pinned == true
-                            ? '取消置顶'
-                            : '置顶弹窗',
-                        onPressed: widget.window?.togglePin,
-                        icon: Icon(
-                          widget.window?.pinned == true
-                              ? Icons.push_pin
-                              : Icons.push_pin_outlined,
-                          size: 18,
-                          color: widget.window?.pinned == true
-                              ? accent
-                              : Colors.grey,
+  Widget build(BuildContext context) {
+    _scheduleFit();
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.enter, control: true): () =>
+            unawaited(app.translate()),
+        const SingleActivator(LogicalKeyboardKey.enter, meta: true): () =>
+            unawaited(app.translate()),
+        const SingleActivator(LogicalKeyboardKey.escape): () =>
+            widget.window?.hide(),
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Material(
+          color: Theme.of(context).colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Theme.of(context).dividerColor, width: 1.2),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              DragToMoveArea(
+                child: SizedBox(
+                  height: 44,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          tooltip: widget.window?.pinned == true
+                              ? '取消置顶'
+                              : '置顶弹窗',
+                          onPressed: widget.window?.togglePin,
+                          icon: Icon(
+                            widget.window?.pinned == true
+                                ? Icons.push_pin
+                                : Icons.push_pin_outlined,
+                            size: 18,
+                            color: widget.window?.pinned == true
+                                ? accent
+                                : Colors.grey,
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: '翻译服务设置',
-                        onPressed: widget.openSettings,
-                        icon: const Icon(
-                          Icons.tune_rounded,
-                          size: 18,
-                          color: Colors.grey,
+                        const Spacer(),
+                        IconButton(
+                          tooltip: '翻译服务设置',
+                          onPressed: widget.openSettings,
+                          icon: const Icon(
+                            Icons.tune_rounded,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        key: const Key('popup-close'),
-                        tooltip: '关闭弹窗',
-                        onPressed: widget.window?.hide,
-                        icon: const Icon(
-                          Icons.cancel_rounded,
-                          size: 22,
-                          color: Colors.grey,
+                        IconButton(
+                          key: const Key('popup-close'),
+                          tooltip: '关闭弹窗',
+                          onPressed: widget.window?.hide,
+                          icon: const Icon(
+                            Icons.cancel_rounded,
+                            size: 22,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Scrollbar(
-                controller: _scroll,
-                child: ListView(
+              Expanded(
+                child: Scrollbar(
                   controller: _scroll,
-                  padding: const EdgeInsets.fromLTRB(12, 2, 12, 16),
-                  children: [
-                    _source(),
-                    const SizedBox(height: 12),
-                    _languageBar(),
-                    if (app.notice != null)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                app.notice!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  height: 1.6,
-                                  color: Theme.of(context).colorScheme.error,
+                  child: SingleChildScrollView(
+                    controller: _scroll,
+                    child: NotificationListener<SizeChangedLayoutNotification>(
+                      onNotification: (_) {
+                        _scheduleFit();
+                        return true;
+                      },
+                      child: SizeChangedLayoutNotifier(
+                        child: Padding(
+                          key: _contentKey,
+                          padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _source(),
+                              const SizedBox(height: 12),
+                              _languageBar(),
+                              if (app.notice != null)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          app.notice!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            height: 1.6,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .error,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: app.clearMessage,
+                                        icon: const Icon(Icons.close, size: 16),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: app.clearMessage,
-                              icon: const Icon(Icons.close, size: 16),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              if (app.results.isEmpty) _empty(),
+                              for (final result in app.results)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _result(result),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
-                    const SizedBox(height: 12),
-                    if (app.results.isEmpty) _empty(),
-                    for (final result in app.results)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _result(result),
-                      ),
-                  ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _source() => Container(
     decoration: BoxDecoration(
@@ -338,7 +459,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
         TextField(
           key: const Key('popup-source'),
           controller: _input,
-          minLines: 2,
+          minLines: 1,
           maxLines: 5,
           onChanged: (value) => app.setInput(value, from: '手动输入'),
           style: const TextStyle(fontSize: 18, height: 1.6),

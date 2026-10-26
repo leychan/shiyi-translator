@@ -107,9 +107,119 @@ void main() {
   );
 
   testWidgets(
+    'popup fits real content and keeps growing translations inside the display',
+    (tester) async {
+      await windowManager.ensureInitialized();
+      final placement = PointerPlacementService();
+      final captured = await placement.capture();
+      final anchor = captured == null
+          ? null
+          : PopupAnchor(
+              cursor: captured.workArea.bottomRight - const Offset(20, 20),
+              workArea: captured.workArea,
+            );
+      final app = AppController(
+        settings: AppSettings(providers: [provider()]),
+        store: MemoryStore(),
+      );
+      final window = PopupWindow();
+      final result = TranslationResult(provider: provider())
+        ..text = '你好'
+        ..status = ResultStatus.complete;
+      app.input = 'Hello';
+      app.results = [result];
+      final inspector = placement.usesKWin ? KWinPlacementBridge() : null;
+      Future<Size> waitForSize(bool Function(Size) matches) async {
+        final deadline = DateTime.now().add(const Duration(seconds: 5));
+        var size = await windowManager.getSize();
+        while (DateTime.now().isBefore(deadline)) {
+          await tester.pumpAndSettle();
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          size = await windowManager.getSize();
+          if (matches(size)) return size;
+        }
+        fail('Unexpected popup size: $size');
+      }
+
+      try {
+        await tester.pumpWidget(PopupApp(controller: app, window: window));
+        await window.initialize();
+        await window.togglePin();
+        await window.show(
+          anchor: anchor,
+          preparePosition: anchor == null
+              ? null
+              : () => placement.prepare(pid, anchor),
+        );
+        final short = await waitForSize(
+          (size) => size.height > 250 && size.height < 500,
+        );
+        // Read the actual rendered content to detect a native window still leaving blank space.
+        final content = find.byType(SizeChangedLayoutNotifier).first;
+        expect(short.height, closeTo(tester.getSize(content).height + 44, 2));
+        result.text = List.filled(100, '很长的翻译内容，需要滚动阅读。').join('\n');
+        app.settingsChanged();
+        final maximum = (anchor?.workArea.height ?? 816) - 16;
+        final tall = await waitForSize(
+          (size) => (size.height - maximum).abs() < 2,
+        );
+        expect(tall.height, greaterThan(short.height));
+        if (inspector != null && anchor != null) {
+          Rect? geometry;
+          final deadline = DateTime.now().add(const Duration(seconds: 3));
+          do {
+            geometry = await inspector.popupGeometry(pid);
+            if (geometry != null &&
+                geometry.bottom <= anchor.workArea.bottom - 6) {
+              break;
+            }
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          } while (DateTime.now().isBefore(deadline));
+          expect(geometry, isNotNull);
+          expect(geometry!.top, greaterThanOrEqualTo(anchor.workArea.top));
+          expect(geometry.bottom, lessThanOrEqualTo(anchor.workArea.bottom));
+        }
+        final scrollable = find
+            .descendant(
+              of: find.byType(SingleChildScrollView).first,
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        expect(
+          tester.state<ScrollableState>(scrollable).position.maxScrollExtent,
+          greaterThan(0),
+        );
+        await tester.tap(find.byKey(const ValueKey('popup-result-test')));
+        await waitForSize((size) => size.height < short.height);
+        await tester.tap(find.byKey(const ValueKey('popup-result-test')));
+        result.text = '你好';
+        app.settingsChanged();
+        await waitForSize((size) => (size.height - short.height).abs() < 2);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await window.hide();
+        window.dispose();
+        await placement.dispose();
+        await inspector?.dispose();
+        await windowManager.setAlwaysOnTop(false);
+        await windowManager.setPreventClose(false);
+        await tester.pumpWidget(const SizedBox.shrink());
+        app.dispose();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop window, service configuration, history, compact and dark layouts',
     (tester) async {
       await windowManager.ensureInitialized();
+      // The preceding popup test leaves a short native window behind.
+      // Restore desktop bounds before mounting the main UI's taller sidebar.
+      await windowManager.waitUntilReadyToShow(
+        const WindowOptions(size: Size(1180, 780)),
+        () async => windowManager.show(),
+      );
+      await tester.pumpAndSettle();
       final boundaryKey = GlobalKey();
       final store = MemoryStore();
       final app = AppController(
@@ -373,6 +483,7 @@ void main() {
             while (DateTime.now().isBefore(deadline)) {
               geometry = await inspector.popupGeometry(popup.processId!);
               if (geometry != null &&
+                  geometry.height < 500 &&
                   (geometry.topLeft -
                               popupBoundsNear(anchor, geometry.size).topLeft)
                           .distance <
@@ -382,8 +493,9 @@ void main() {
               await Future<void>.delayed(const Duration(milliseconds: 100));
             }
             expect(geometry, isNotNull);
+            expect(geometry!.height, lessThan(500));
             expect(
-              (geometry!.topLeft -
+              (geometry.topLeft -
                       popupBoundsNear(anchor, geometry.size).topLeft)
                   .distance,
               lessThan(2),
