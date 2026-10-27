@@ -71,7 +71,7 @@ class PopupService {
       'target': main.settings.target,
       'darkMode': main.settings.darkMode,
     },
-    'results': controller.results.map((r) => r.toJson()).toList(),
+    'results': controller.orderedResults.map((r) => r.toJson()).toList(),
   };
 
   Future<void> present({

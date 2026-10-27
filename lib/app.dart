@@ -648,7 +648,8 @@ class _HomePageState extends State<HomePage> {
       );
 
   Widget _resultPane() {
-    if (app.results.isEmpty) {
+    final results = app.orderedResults;
+    if (results.isEmpty) {
       return Surface(
         child: Center(
           child: SingleChildScrollView(
@@ -700,13 +701,14 @@ class _HomePageState extends State<HomePage> {
       );
     }
     return ListView.separated(
-      itemCount: app.results.length,
+      itemCount: results.length,
       separatorBuilder: (_, _) => const SizedBox(height: 16),
-      itemBuilder: (context, index) => _resultCard(app.results[index]),
+      itemBuilder: (context, index) => _resultCard(results[index]),
     );
   }
 
   Widget _resultCard(TranslationResult result) => Surface(
+    key: ValueKey('translation-result-${result.provider.id}'),
     child: Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -784,7 +786,8 @@ class _HomePageState extends State<HomePage> {
   Widget _providers() {
     final colors = Theme.of(context).colorScheme;
     final muted = colors.onSurfaceVariant;
-    return ListView(
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -810,7 +813,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '启用的服务会并行翻译，各自展示结果。',
+                    '拖动卡片左侧手柄调整顺序，译文将按此排列。',
                     style: TextStyle(fontSize: 12, color: muted),
                   ),
                 ],
@@ -931,11 +934,10 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-        for (final provider in app.settings.providers)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: _providerCard(provider),
-          ),
+      ],
+    );
+    final footer = Column(
+      children: [
         const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -951,6 +953,30 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ],
+    );
+    return ReorderableListView.builder(
+      key: const Key('provider-list'),
+      header: header,
+      footer: footer,
+      buildDefaultDragHandles: false,
+      itemCount: app.settings.providers.length,
+      onReorderItem: (oldIndex, newIndex) =>
+          unawaited(app.reorderProviders(oldIndex, newIndex)),
+      proxyDecorator: (child, index, animation) => Material(
+        elevation: 8,
+        color: Colors.transparent,
+        shadowColor: Colors.black.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(18),
+        child: child,
+      ),
+      itemBuilder: (context, index) {
+        final provider = app.settings.providers[index];
+        return Padding(
+          key: ValueKey('provider-card-${provider.id}'),
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _providerCard(provider, index),
+        );
+      },
     );
   }
 
@@ -980,7 +1006,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _providerCard(ProviderConfig provider) {
+  Widget _providerCard(ProviderConfig provider, int index) {
     final colors = Theme.of(context).colorScheme;
     final muted = colors.onSurfaceVariant;
     final metadata = Wrap(
@@ -1033,6 +1059,27 @@ class _HomePageState extends State<HomePage> {
           children: [
             Row(
               children: [
+                ReorderableDragStartListener(
+                  key: ValueKey('provider-drag-${provider.id}'),
+                  index: index,
+                  child: Tooltip(
+                    message: '拖拽调整顺序',
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.grab,
+                      child: Semantics(
+                        label: '调整${provider.name}的顺序',
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
+                          child: Icon(
+                            Icons.drag_indicator_rounded,
+                            size: 20,
+                            color: muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 ProviderIcon(kind: provider.kind, size: 40),
                 const SizedBox(width: 13),
                 Expanded(
@@ -1068,28 +1115,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 17),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-              decoration: BoxDecoration(
-                color: muted.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.link_rounded, size: 16, color: muted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      provider.endpoint,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: muted),
-                    ),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 14),
             LayoutBuilder(

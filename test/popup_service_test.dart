@@ -22,6 +22,60 @@ class FakeTranslator extends TranslationService {
 }
 
 void main() {
+  test('saved order reaches a remote popup without losing its draft or translations', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'shiyi-order-test-',
+    );
+    final instance = InstanceService(directory: directory);
+    final providers = [provider(id: 'one'), provider(id: 'two')];
+    final main = AppController(
+      settings: AppSettings(providers: providers),
+      store: MemoryStore(),
+    );
+    final popup = PopupService(main, launchWindow: () async {});
+    RemotePopupController? remote;
+    try {
+      await instance.startOrForward('show');
+      instance.onRpc = popup.handle;
+      await popup.present(text: 'hello', translate: false);
+      popup.controller.results = [
+        for (final p in providers)
+          TranslationResult(provider: p)
+            ..text = '译文 ${p.id}'
+            ..status = ResultStatus.complete,
+      ];
+      popup.controller.settingsChanged();
+      final session = jsonDecode(
+        await File('${directory.path}/session.json').readAsString(),
+      );
+      remote = RemotePopupController(
+        PopupConnection(
+          port: session['port'] as int,
+          token: session['token'] as String,
+        ),
+      );
+      await remote.start();
+      expect(remote.results.map((r) => r.provider.id), ['one', 'two']);
+      remote.setInput('keep this local draft');
+      await main.reorderProviders(0, 1);
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (remote.results.first.provider.id != 'two' &&
+          DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+      }
+      expect(remote.results.map((r) => r.provider.id), ['two', 'one']);
+      expect(remote.results.map((r) => r.text), ['译文 two', '译文 one']);
+      expect(remote.input, 'keep this local draft');
+      expect(popup.controller.input, 'hello');
+    } finally {
+      remote?.dispose();
+      await popup.dispose();
+      main.dispose();
+      await instance.close();
+      await directory.delete(recursive: true);
+    }
+  });
+
   test('popup state is isolated from main draft while credentials and history stay in owner', () async {
     final store = MemoryStore();
     store.keys['test'] = 'private-test-key';

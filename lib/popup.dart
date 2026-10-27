@@ -313,6 +313,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
   @override
   Widget build(BuildContext context) {
     _scheduleFit();
+    final results = app.orderedResults;
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.enter, control: true): () =>
@@ -428,8 +429,8 @@ class _TranslationPopupState extends State<TranslationPopup> {
                                   ),
                                 ),
                               const SizedBox(height: 12),
-                              if (app.results.isEmpty) _empty(),
-                              for (final result in app.results)
+                              if (results.isEmpty) _empty(),
+                              for (final result in results)
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
                                   child: _result(result),
@@ -619,6 +620,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
   Widget _result(TranslationResult result) {
     final collapsed = _collapsed.contains(result.provider.id);
     return Material(
+      key: ValueKey('popup-result-card-${result.provider.id}'),
       color: _card,
       clipBehavior: Clip.antiAlias,
       borderRadius: BorderRadius.circular(14),

@@ -24,6 +24,11 @@ class ControlledTranslator extends TranslationService {
 
 Future<void> flush() => Future<void>.delayed(Duration.zero);
 
+class UnwritableStore extends MemoryStore {
+  @override
+  Future<void> save(AppSettings value) async => throw StateError('unwritable');
+}
+
 void main() {
   late MemoryStore store;
   late ControlledTranslator translator;
@@ -40,6 +45,120 @@ void main() {
   tearDown(() {
     app.dispose();
   });
+
+  test('provider order persists in both directions and filters disabled services in place', () async {
+    app.settings.providers = [
+      provider(id: 'one'),
+      provider(id: 'two').withEnabled(false),
+      provider(id: 'three'),
+    ];
+    await app.reorderProviders(0, 2);
+    expect(app.settings.providers.map((p) => p.id), ['two', 'three', 'one']);
+    expect(app.enabledProviders.map((p) => p.id), ['three', 'one']);
+    final restored = AppSettings.fromJson(
+      jsonDecode(jsonEncode(store.settings.toJson())),
+    );
+    expect(restored.providers.map((p) => p.id), ['two', 'three', 'one']);
+    await app.reorderProviders(2, 0);
+    expect(app.settings.providers.map((p) => p.id), ['one', 'two', 'three']);
+    expect(store.saves, 2);
+    await app.reorderProviders(0, 0);
+    await app.reorderProviders(-1, 0);
+    await app.reorderProviders(0, 4);
+    expect(store.saves, 2);
+  });
+
+  test('editing a provider preserves its ordered position', () async {
+    app.settings.providers = [
+      provider(id: 'one'),
+      provider(id: 'two'),
+      provider(id: 'three'),
+    ];
+    await app.saveProvider(
+      provider(id: 'two', endpoint: 'http://localhost:9001/v1'),
+      'test-key',
+    );
+    expect(app.settings.providers.map((p) => p.id), ['one', 'two', 'three']);
+    expect(app.settings.providers[1].endpoint, 'http://localhost:9001/v1');
+  });
+
+  test('reordering during translation preserves requests and ignores completion order', () async {
+    app.settings.providers = [provider(id: 'one'), provider(id: 'two')];
+    app.input = 'hello';
+    final run = app.translate();
+    await flush();
+    translator.calls['two:hello']!.complete('第二个服务先返回');
+    await flush();
+    expect(app.orderedResults.map((r) => r.provider.id), ['one', 'two']);
+    await app.reorderProviders(0, 1);
+    expect(app.busy, true);
+    expect(app.orderedResults.map((r) => r.provider.id), ['two', 'one']);
+    expect(app.orderedResults.first.text, '第二个服务先返回');
+    translator.calls['one:hello']!.completeError(
+      const TranslationFailure('请求失败'),
+    );
+    await run;
+    expect(app.orderedResults.map((r) => r.provider.id), ['two', 'one']);
+    expect(app.orderedResults.first.status, ResultStatus.complete);
+    expect(app.orderedResults.last.status, ResultStatus.failed);
+    expect(app.results.map((r) => r.provider.id), ['one', 'two']);
+    final cachedRun = app.translate();
+    await flush();
+    // The successful service remains cached after a reorder.
+    expect(app.results.first.provider.id, 'two');
+    expect(app.results.first.cached, true);
+    translator.calls['one:hello']!.complete('第一个服务重试完成');
+    await cachedRun;
+  });
+
+  test(
+    'historical results follow current service order and keep removed services',
+    () {
+      app.settings.providers = [provider(id: 'one'), provider(id: 'two')];
+      app.restoreHistory(
+        HistoryEntry(
+          id: 'history',
+          text: 'hello',
+          source: 'en',
+          target: 'zh',
+          createdAt: DateTime(2026),
+          translations: {
+            'Second · two': '二',
+            'Removed · missing': '旧译文',
+            'First · label · one': '一',
+            'Legacy': '更早的译文',
+          },
+        ),
+      );
+      expect(app.orderedResults.map((r) => r.provider.id), [
+        'one',
+        'two',
+        'missing',
+        'history-3',
+      ]);
+      expect(app.orderedResults.map((r) => r.text), ['一', '二', '旧译文', '更早的译文']);
+      expect(app.orderedResults.first.provider.name, 'First · label');
+    },
+  );
+
+  test(
+    'save failures are reported while keeping the new order usable in memory',
+    () async {
+      final controller = AppController(
+        settings: AppSettings(
+          providers: [
+            provider(id: 'one'),
+            provider(id: 'two'),
+          ],
+        ),
+        store: UnwritableStore(),
+      );
+      addTearDown(controller.dispose);
+      await controller.reorderProviders(0, 1);
+      expect(controller.settings.providers.first.id, 'two');
+      expect(controller.notice, contains('无法保存'));
+    },
+  );
 
   test('new request wins over late response from an older request', () async {
     app.input = 'old';

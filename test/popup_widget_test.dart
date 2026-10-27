@@ -15,6 +15,42 @@ class MeasuringPopupWindow extends PopupWindow {
 
 void main() {
   testWidgets(
+    'popup follows provider order and preserves collapsed cards after reorder',
+    (tester) async {
+      tester.view.physicalSize = const Size(480, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final providers = [provider(id: 'one'), provider(id: 'two')];
+      final app = AppController(
+        settings: AppSettings(providers: providers),
+        store: MemoryStore(),
+      );
+      addTearDown(app.dispose);
+      app.input = 'Hello';
+      app.results = [
+        for (final p in providers.reversed)
+          TranslationResult(provider: p)
+            ..text = '译文 ${p.id}'
+            ..status = ResultStatus.complete,
+      ];
+      await tester.pumpWidget(PopupApp(controller: app));
+      await tester.pumpAndSettle();
+      final one = find.byKey(const Key('popup-result-one'));
+      final two = find.byKey(const Key('popup-result-two'));
+      expect(tester.getTopLeft(one).dy, lessThan(tester.getTopLeft(two).dy));
+      await tester.tap(one);
+      await tester.pumpAndSettle();
+      await app.reorderProviders(1, 0);
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(two).dy, lessThan(tester.getTopLeft(one).dy));
+      expect(find.text('译文 one'), findsNothing);
+      expect(find.text('译文 two'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'popup measures real content, grows for text and shrinks on collapse',
     (tester) async {
       tester.view.physicalSize = const Size(480, 700);

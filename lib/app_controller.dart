@@ -25,6 +25,39 @@ class AppController extends ChangeNotifier {
 
   List<ProviderConfig> get enabledProviders =>
       settings.providers.where((p) => p.enabled).toList();
+
+  /// Sort presentation copies so in-flight requests keep their own result objects.
+  List<TranslationResult> get orderedResults {
+    final ranks = {
+      for (var i = 0; i < settings.providers.length; i++)
+        settings.providers[i].id: i,
+    };
+    final sorted = results.indexed.toList()
+      ..sort((a, b) {
+        final comparison = (ranks[a.$2.provider.id] ?? ranks.length).compareTo(
+          ranks[b.$2.provider.id] ?? ranks.length,
+        );
+        return comparison != 0 ? comparison : a.$1.compareTo(b.$1);
+      });
+    return sorted.map((entry) => entry.$2).toList();
+  }
+
+  Future<void> reorderProviders(int oldIndex, int newIndex) async {
+    final count = settings.providers.length;
+    if (oldIndex < 0 ||
+        oldIndex >= count ||
+        newIndex < 0 ||
+        newIndex >= count) {
+      return;
+    }
+    if (oldIndex == newIndex) return;
+    final next = [...settings.providers];
+    next.insert(newIndex, next.removeAt(oldIndex));
+    settings.providers = next;
+    notifyListeners();
+    await persist();
+  }
+
   void goTo(int value) {
     page = value;
     notifyListeners();
@@ -62,8 +95,13 @@ class AppController extends ChangeNotifier {
       await store.writeKey(config.id, apiKey);
     }
     config = config.withCredential(apiKey.isNotEmpty);
-    final next = settings.providers.where((p) => p.id != config.id).toList()
-      ..add(config);
+    final next = [...settings.providers];
+    final index = next.indexWhere((p) => p.id == config.id);
+    if (index < 0) {
+      next.add(config);
+    } else {
+      next[index] = config;
+    }
     final previous = settings.providers;
     settings.providers = next;
     try {
@@ -228,12 +266,20 @@ class AppController extends ChangeNotifier {
     settings.source = entry.source;
     settings.target = entry.target;
     captureLabel = '历史记录';
-    results = entry.translations.entries.map((translation) {
+    results = entry.translations.entries.indexed.map((item) {
+      final (index, translation) = item;
+      final separator = translation.key.lastIndexOf(' · ');
+      final id = separator < 0
+          ? 'history-$index'
+          : translation.key.substring(separator + 3);
+      final known = settings.providers.where((p) => p.id == id).firstOrNull;
       final result = TranslationResult(
         provider: ProviderConfig(
-          id: 'history',
-          name: translation.key.split(' · ').first,
-          kind: ProviderKind.compatible,
+          id: id,
+          name: separator < 0
+              ? translation.key
+              : translation.key.substring(0, separator),
+          kind: known?.kind ?? ProviderKind.compatible,
           endpoint: '',
         ),
       );

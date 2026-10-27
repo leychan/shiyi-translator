@@ -7,6 +7,66 @@ import 'package:just_translator/models.dart';
 import 'support.dart';
 
 void main() {
+  testWidgets(
+    'dragging a handle saves provider order and orders the main results',
+    (tester) async {
+      tester.view.physicalSize = const Size(1180, 1040);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final providers = [
+        provider(id: 'one'),
+        provider(id: 'two'),
+        provider(id: 'three'),
+      ];
+      final store = MemoryStore();
+      final app = AppController(
+        settings: AppSettings(providers: providers),
+        store: store,
+      );
+      addTearDown(app.dispose);
+      app.goTo(1);
+      app.results = [
+        for (final p in providers.reversed)
+          TranslationResult(provider: p)
+            ..text = '译文 ${p.id}'
+            ..status = ResultStatus.complete,
+      ];
+      await tester.pumpWidget(TranslatorApp(controller: app));
+      await tester.pumpAndSettle();
+      final first = tester.getCenter(
+        find.byKey(const Key('provider-drag-one')),
+      );
+      final last = tester.getCenter(
+        find.byKey(const Key('provider-drag-three')),
+      );
+      final gesture = await tester.startGesture(last);
+      await tester.pump();
+      await gesture.moveBy(const Offset(0, -12));
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.moveTo(first + const Offset(0, 10));
+      await tester.pump(const Duration(milliseconds: 500));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(app.settings.providers.map((p) => p.id), ['three', 'one', 'two']);
+      expect(store.saves, 1);
+      app.goTo(0);
+      await tester.pumpAndSettle();
+      final thirdY = tester
+          .getTopLeft(find.byKey(const Key('translation-result-three')))
+          .dy;
+      final firstY = tester
+          .getTopLeft(find.byKey(const Key('translation-result-one')))
+          .dy;
+      final secondY = tester
+          .getTopLeft(find.byKey(const Key('translation-result-two')))
+          .dy;
+      expect(thirdY, lessThan(firstY));
+      expect(firstY, lessThan(secondY));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('onboarding, service form validation, and navigation', (
     tester,
   ) async {

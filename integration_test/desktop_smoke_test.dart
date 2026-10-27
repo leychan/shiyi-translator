@@ -210,6 +210,119 @@ void main() {
   );
 
   testWidgets(
+    'dragged service order is reflected in desktop and popup result cards',
+    (tester) async {
+      await windowManager.ensureInitialized();
+      await windowManager.waitUntilReadyToShow(
+        const WindowOptions(size: Size(1180, 1000)),
+        () async => windowManager.show(),
+      );
+      await tester.pumpAndSettle();
+      final providers = [
+        provider(id: 'one'),
+        provider(id: 'two'),
+        provider(id: 'three'),
+      ];
+      final store = MemoryStore();
+      final app = AppController(
+        settings: AppSettings(providers: providers),
+        store: store,
+      );
+      final boundaryKey = GlobalKey();
+      PopupWindow? popupWindow;
+      Future<void> screenshot(String name) async {
+        await tester.pumpAndSettle();
+        final boundary =
+            boundaryKey.currentContext!.findRenderObject()!
+                as RenderRepaintBoundary;
+        final pixels = await boundary.toImage(pixelRatio: 1);
+        final bytes = await pixels.toByteData(format: ui.ImageByteFormat.png);
+        await Directory('build/screenshots').create(recursive: true);
+        await File('build/screenshots/$name.png')
+            .writeAsBytes(bytes!.buffer.asUint8List());
+        pixels.dispose();
+      }
+
+      try {
+        app.goTo(1);
+        app.input = 'Hello';
+        app.results = [
+          for (final p in providers.reversed)
+            TranslationResult(provider: p)
+              ..text = '译文 ${p.id}'
+              ..status = ResultStatus.complete,
+        ];
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: boundaryKey,
+            child: TranslatorApp(controller: app),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final destination = tester.getCenter(
+          find.byKey(const Key('provider-drag-one')),
+        );
+        final drag = await tester.startGesture(
+          tester.getCenter(find.byKey(const Key('provider-drag-three'))),
+        );
+        await tester.pump();
+        await drag.moveBy(const Offset(0, -12));
+        await tester.pump(const Duration(milliseconds: 50));
+        await drag.moveTo(destination + const Offset(0, 10));
+        await tester.pump(const Duration(milliseconds: 500));
+        await drag.up();
+        await tester.pumpAndSettle();
+        expect(app.settings.providers.map((p) => p.id), [
+          'three',
+          'one',
+          'two',
+        ]);
+        expect(store.saves, 1);
+        await screenshot('15-services-order');
+        app.goTo(0);
+        await tester.pumpAndSettle();
+        double mainY(String id) => tester
+            .getTopLeft(find.byKey(ValueKey('translation-result-$id')))
+            .dy;
+        expect(mainY('three'), lessThan(mainY('one')));
+        expect(mainY('one'), lessThan(mainY('two')));
+        await screenshot('16-main-result-order');
+        popupWindow = PopupWindow();
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: boundaryKey,
+            child: PopupApp(controller: app, window: popupWindow),
+          ),
+        );
+        await popupWindow.initialize();
+        await popupWindow.togglePin();
+        await popupWindow.show();
+        await tester.pumpAndSettle();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await tester.pumpAndSettle();
+        double popupY(String id) =>
+            tester.getTopLeft(find.byKey(ValueKey('popup-result-$id'))).dy;
+        expect(popupY('three'), lessThan(popupY('one')));
+        expect(popupY('one'), lessThan(popupY('two')));
+        await screenshot('17-popup-result-order');
+        await app.reorderProviders(0, 2);
+        await tester.pumpAndSettle();
+        expect(popupY('one'), lessThan(popupY('two')));
+        expect(popupY('two'), lessThan(popupY('three')));
+        expect(find.text('译文 three'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await popupWindow?.hide();
+        popupWindow?.dispose();
+        await windowManager.setAlwaysOnTop(false);
+        await windowManager.setPreventClose(false);
+        await tester.pumpWidget(const SizedBox.shrink());
+        app.dispose();
+      }
+    },
+  );
+
+  testWidgets(
     'desktop window, service configuration, history, compact and dark layouts',
     (tester) async {
       await windowManager.ensureInitialized();
