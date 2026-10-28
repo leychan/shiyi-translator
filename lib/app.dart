@@ -1246,6 +1246,24 @@ class _HomePageState extends State<HomePage> {
             unawaited(app.persist());
           },
         ),
+      ]),
+      const SizedBox(height: 20),
+      _section('启动与后台', [
+        SwitchListTile(
+          key: const Key('autostart-toggle'),
+          title: const Text('开机自启动', style: TextStyle(fontSize: 14)),
+          subtitle: Text(
+            widget.desktop?.autostartBusy == true
+                ? '正在更新系统启动设置…'
+                : widget.desktop?.autostartError ?? '登录后自动启动，默认静默驻留托盘',
+            style: const TextStyle(fontSize: 11),
+          ),
+          value: widget.desktop?.autostartEnabled ?? false,
+          onChanged: widget.desktop == null || widget.desktop!.autostartBusy
+              ? null
+              : (value) =>
+                    unawaited(widget.desktop!.setAutostartEnabled(value)),
+        ),
         SwitchListTile(
           title: const Text('关闭窗口后留在托盘', style: TextStyle(fontSize: 14)),
           subtitle: const Text(

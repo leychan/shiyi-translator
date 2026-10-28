@@ -13,6 +13,7 @@ import 'package:just_translator/popup.dart';
 import 'package:just_translator/popup_placement.dart';
 import 'package:just_translator/services/pointer_placement_service.dart';
 import 'package:just_translator/services/desktop_service.dart';
+import 'package:just_translator/services/autostart_service.dart';
 import 'package:just_translator/services/instance_service.dart';
 import 'package:just_translator/services/popup_service.dart';
 import 'package:just_translator/services/selection_service.dart';
@@ -55,7 +56,16 @@ void main() {
       final window = PopupWindow();
       try {
         await windowManager.ensureInitialized();
+        final captureTime = Stopwatch()..start();
         final captured = await bridge.capture();
+        captureTime.stop();
+        debugPrint(
+          'KWin pointer capture: ${captureTime.elapsedMilliseconds} ms',
+        );
+        expect(
+          captureTime.elapsed,
+          lessThan(const Duration(milliseconds: 1500)),
+        );
         expect(captured.workArea.width, greaterThan(0));
         await tester.pumpWidget(PopupApp(controller: app, window: window));
         await tester.pumpAndSettle();
@@ -66,12 +76,19 @@ void main() {
             cursor: cursor,
             workArea: captured.workArea,
           );
+          final showTime = Stopwatch()..start();
           await window.show(
             anchor: anchor,
             preparePosition: () async {
               await bridge.prepare(pid, anchor);
               return true;
             },
+          );
+          showTime.stop();
+          debugPrint('KWin popup show: ${showTime.elapsedMilliseconds} ms');
+          expect(
+            showTime.elapsed,
+            lessThan(const Duration(milliseconds: 1500)),
           );
           await tester.pumpAndSettle();
           Rect? geometry;
@@ -323,6 +340,108 @@ void main() {
   );
 
   testWidgets(
+    'autostart toggle manages a user entry and background initialization stays hidden',
+    (tester) async {
+      if (!Platform.isLinux) return;
+      await windowManager.ensureInitialized();
+      await windowManager.waitUntilReadyToShow(
+        const WindowOptions(size: Size(1180, 780)),
+        () async => windowManager.hide(),
+      );
+      await tester.pumpAndSettle();
+      final root = await Directory.systemTemp.createTemp(
+        'shiyi-startup-desktop-',
+      );
+      final instance = InstanceService(
+        directory: Directory('${root.path}/data'),
+      );
+      final autostart = AutostartService(
+        executable: File('build/linux/x64/release/bundle/just_translator')
+            .absolute
+            .path,
+        environment: {
+          'HOME': root.path,
+          'XDG_CONFIG_HOME': '${root.path}/config',
+        },
+      );
+      final entry = File(
+        '${root.path}/config/autostart/${AutostartService.desktopId}.desktop',
+      );
+      final app = AppController(settings: AppSettings(), store: MemoryStore());
+      final desktop = DesktopService(app, instance, autostart: autostart);
+      final boundaryKey = GlobalKey();
+      Future<void> settleRegistration() async {
+        final deadline = DateTime.now().add(const Duration(seconds: 4));
+        while (desktop.autostartBusy && DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 30));
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+        expect(desktop.autostartBusy, false);
+      }
+
+      try {
+        await instance.startOrForward('show');
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: boundaryKey,
+            child: TranslatorApp(controller: app, desktop: desktop),
+          ),
+        );
+        await desktop.initialize(bindShortcut: false, showMain: false);
+        expect(desktop.trayReady, true);
+        expect(await windowManager.isVisible(), false);
+        await desktop.handleAction('autostart');
+        expect(await windowManager.isVisible(), false);
+        await desktop.show();
+        app.goTo(3);
+        await tester.pumpAndSettle();
+        await settleRegistration();
+        final toggle = find.byKey(const Key('autostart-toggle'));
+        await tester.ensureVisible(toggle);
+        expect(tester.widget<SwitchListTile>(toggle).value, false);
+        await tester.tap(toggle);
+        await tester.pump();
+        await settleRegistration();
+        expect(desktop.autostartEnabled, true);
+        expect(await autostart.isEnabled(), true);
+        expect(await entry.readAsString(), contains('--autostart'));
+        expect(
+          (await Process.run('desktop-file-validate', [entry.path])).exitCode,
+          0,
+        );
+        final boundary =
+            boundaryKey.currentContext!.findRenderObject()!
+                as RenderRepaintBoundary;
+        final pixels = await boundary.toImage(pixelRatio: 1);
+        final bytes = await pixels.toByteData(format: ui.ImageByteFormat.png);
+        await Directory('build/screenshots').create(recursive: true);
+        await File('build/screenshots/18-autostart-settings.png')
+            .writeAsBytes(bytes!.buffer.asUint8List());
+        pixels.dispose();
+        await tester.tap(toggle);
+        await tester.pump();
+        await settleRegistration();
+        expect(desktop.autostartEnabled, false);
+        expect(await entry.exists(), false);
+        await windowManager.hide();
+        await desktop.handleAction('autostart');
+        expect(await windowManager.isVisible(), false);
+        expect(tester.takeException(), isNull);
+      } finally {
+        desktop.dispose();
+        await desktop.popup.dispose();
+        await trayManager.destroy();
+        await windowManager.setPreventClose(false);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await instance.close();
+        app.dispose();
+        await root.delete(recursive: true);
+      }
+    },
+  );
+
+  testWidgets(
     'desktop window, service configuration, history, compact and dark layouts',
     (tester) async {
       await windowManager.ensureInitialized();
@@ -552,6 +671,13 @@ void main() {
         ).timeout(const Duration(seconds: 15));
         expect(result.exitCode, 0, reason: result.stderr.toString());
         expect(actions, ['selection']);
+        final startup = await Process.run(
+          release.path,
+          ['--autostart'],
+          environment: {'XDG_DATA_HOME': root.path},
+        ).timeout(const Duration(seconds: 15));
+        expect(startup.exitCode, 0, reason: startup.stderr.toString());
+        expect(actions, ['selection', 'autostart']);
       } finally {
         await instance.close();
         await root.delete(recursive: true);

@@ -1,6 +1,6 @@
 # shiyi-translator（拾译）
 
-Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.5，优先在 KDE Wayland 上验证。
+Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.6，优先在 KDE Wayland 上验证。
 
 ## 名字的含义
 
@@ -21,6 +21,7 @@ Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版
 - 取消、重试、45 秒超时、内存缓存；新请求不会被旧结果覆盖。
 - 本机最近 100 条历史记录，可禁用保存或清空。
 - 托盘、关闭后后台驻留、独立翻译弹窗、置顶、深色模式。
+- 可选开机自启动，登录后静默驻留托盘，设置开关直接读取和管理系统启动项。
 - 快捷键只显示翻译弹窗，主窗口的草稿、页面与窗口尺寸不受影响。
 - 弹窗按原文、语言切换、各服务结果排列，支持复制、修改原文、折叠结果。
 - 弹窗高度随实际内容调整，译文增长、折叠结果或修改原文后自动适配；超出屏幕可用高度时滚动显示。
@@ -78,6 +79,18 @@ flutter run -d linux
 地址可以填写基础地址，也可以填写完整的 `/chat/completions`、`/v2/translate`、`/translate`、`/api/trans/vip/translate` 地址。不要在地址中放密钥或查询参数。端点支持由 Dart HttpClient 读取环境代理配置。
 
 API Key 通过系统凭据存储保存：Linux 需要运行中的 Secret Service（例如提供该服务的 KWallet / GNOME Keyring）。保存失败会提示，不会回退到明文文件。没有密钥的本地服务可以留空。
+
+## 开机自启动
+
+在「偏好设置 → 启动与后台」中开启「开机自启动」。默认关闭，只管理当前用户的拾译启动项。开启后下次登录桌面时通过 `--autostart` 启动，主窗口保持隐藏，托盘和快捷翻译可用；托盘不可用时显示主窗口。已有实例运行时，自启动命令不会重复打开窗口或读取选区。
+
+关闭开关会移除拾译的启动项，不影响当前程序运行。开关状态从系统配置读取，不另存一份容易失真的本地布尔值。
+
+- Linux：使用 `$XDG_CONFIG_HOME/autostart/dev.justtranslator.just_translator.desktop`，默认位于 `~/.config/autostart/`，遵循 [XDG 自启动规范](https://specifications.freedesktop.org/autostart/latest/)。
+- Windows：使用当前用户的 [Run 注册表项](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys)，值名为 `ShiyiTranslator`。
+- macOS：使用用户目录下的 [LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)，文件为 `~/Library/LaunchAgents/dev.justtranslator.justTranslator.autostart.plist`。
+
+自启动测试在临时目录中创建并移除测试项，不会开启开发者机器的真实自启动。Windows、macOS 的原生桥接仍需在对应系统上编译和验证。
 
 ## 快捷取词
 

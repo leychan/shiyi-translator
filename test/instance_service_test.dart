@@ -28,12 +28,17 @@ void main() {
         final accepted = await request.close();
         expect(accepted.statusCode, HttpStatus.accepted);
         await accepted.drain<void>();
+        final startup = await client.postUrl(uri.replace(path: '/autostart'));
+        startup.headers.set('authorization', 'Bearer ${session['token']}');
+        final startupAccepted = await startup.close();
+        expect(startupAccepted.statusCode, HttpStatus.accepted);
+        await startupAccepted.drain<void>();
         final actions = <String>[];
         instance.onAction = (action) async {
           actions.add(action);
         };
         await instance.drainPending();
-        expect(actions, ['selection']);
+        expect(actions, ['selection', 'autostart']);
       } finally {
         client.close(force: true);
         await instance.close();

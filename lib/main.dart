@@ -31,7 +31,10 @@ Future<void> main(List<String> arguments) async {
       ? 'selection'
       : arguments.contains('--clipboard')
       ? 'clipboard'
+      : arguments.contains('--autostart')
+      ? 'autostart'
       : 'show';
+  final capture = action == 'selection' || action == 'clipboard';
   final instance = InstanceService();
   try {
     if (!await instance.startOrForward(action)) exit(0);
@@ -43,7 +46,7 @@ Future<void> main(List<String> arguments) async {
     final placement = PointerPlacementService();
     PopupAnchor? anchor;
     String? captureError;
-    if (action != 'show') {
+    if (capture) {
       anchor = await placement.capture();
       try {
         captured = action == 'selection'
@@ -68,7 +71,10 @@ Future<void> main(List<String> arguments) async {
         desktop
             .initialize(showMain: action == 'show')
             .then((_) async {
-              if (action != 'show') {
+              if (action == 'autostart' && !desktop.trayReady) {
+                await desktop.show();
+              }
+              if (capture) {
                 await desktop.popup.present(
                   text: captured?.text ?? '',
                   label: captured?.label,

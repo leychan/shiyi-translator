@@ -90,7 +90,10 @@ class _PlacementReplies extends DBusObject {
 /// KWin owns global coordinates on KDE Wayland. Scripts are temporary, target
 /// only our popup PID, and are unloaded when replaced or the application quits.
 class KWinPlacementBridge {
-  final _client = DBusClient.session();
+  KWinPlacementBridge({DBusClient? client})
+    : _client = client ?? DBusClient.session();
+
+  final DBusClient _client;
   final _pending = <String, Completer<Map<String, dynamic>>>{};
   Future<void>? _initializing;
   late DBusRemoteObject _scripting;
@@ -139,19 +142,32 @@ class KWinPlacementBridge {
       '_',
     );
     final token = 'jt_${pid}_${connection}_${++_serial}';
-    final name = 'just-translator-$token';
     final file = File('${_directory.path}/$token.js');
     await file.writeAsString(body(token), flush: true);
     final completer = Completer<Map<String, dynamic>>();
     _pending[token] = completer;
+    final loadedNames = <String>[];
+    String? name;
     try {
-      final loaded = await _scripting.callMethod(
-        'org.kde.kwin.Scripting',
-        'loadScript',
-        [DBusString(file.path), DBusString(name)],
-      );
-      final id = loaded.values.single.asInt32();
-      if (id < 0) throw StateError('KWin rejected positioning script');
+      // KWin 6 assigns IDs from the number of loaded scripts. After an older
+      // script is unloaded, that ID can still belong to another script. Hold
+      // colliding slots until our script has its own D-Bus object; never run
+      // the unrelated script already registered at the reused path.
+      final occupied = (await _scripting.introspect()).children
+          .map((child) => child.name)
+          .toSet();
+      int id;
+      do {
+        name = 'just-translator-$token-${loadedNames.length}';
+        final loaded = await _scripting.callMethod(
+          'org.kde.kwin.Scripting',
+          'loadScript',
+          [DBusString(file.path), DBusString(name)],
+        );
+        id = loaded.values.single.asInt32();
+        if (id < 0) throw StateError('KWin rejected positioning script');
+        loadedNames.add(name);
+      } while (occupied.contains('Script$id'));
       final script = DBusRemoteObject(
         _client,
         name: 'org.kde.KWin',
@@ -164,7 +180,9 @@ class KWinPlacementBridge {
       return result;
     } finally {
       _pending.remove(token);
-      if (!retain || _placementScript != name) await _unload(name);
+      for (final loaded in loadedNames.reversed) {
+        if (!retain || _placementScript != loaded) await _unload(loaded);
+      }
       if (await file.exists()) await file.delete();
     }
   }

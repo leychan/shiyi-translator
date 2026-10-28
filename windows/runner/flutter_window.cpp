@@ -1,12 +1,64 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <string>
+#include <vector>
 #include <UIAutomation.h>
 #include <wrl/client.h>
 #include <flutter/standard_method_codec.h>
 
 namespace {
 constexpr int kTranslateHotKey = 0x4A54;
+constexpr wchar_t kRunKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+constexpr wchar_t kAutostartName[] = L"ShiyiTranslator";
+
+bool AutostartCommand(std::wstring* command) {
+  std::vector<wchar_t> path(32768);
+  const DWORD length = GetModuleFileNameW(nullptr, path.data(), static_cast<DWORD>(path.size()));
+  if (length == 0 || length >= path.size()) return false;
+  *command = L"\"" + std::wstring(path.data(), length) + L"\" --autostart";
+  return command->size() <= 260;
+}
+
+bool ReadAutostart(bool* enabled) {
+  *enabled = false;
+  std::wstring expected;
+  if (!AutostartCommand(&expected)) return false;
+  DWORD bytes = 0;
+  LSTATUS status = RegGetValueW(HKEY_CURRENT_USER, kRunKey, kAutostartName,
+                               RRF_RT_REG_SZ, nullptr, nullptr, &bytes);
+  if (status == ERROR_FILE_NOT_FOUND || status == ERROR_PATH_NOT_FOUND) return true;
+  if (status != ERROR_SUCCESS) return false;
+  std::vector<wchar_t> value(bytes / sizeof(wchar_t) + 1, L'\0');
+  status = RegGetValueW(HKEY_CURRENT_USER, kRunKey, kAutostartName,
+                       RRF_RT_REG_SZ, nullptr, value.data(), &bytes);
+  if (status != ERROR_SUCCESS) return false;
+  *enabled = std::wstring(value.data()) == expected;
+  return true;
+}
+
+bool SetAutostart(bool enabled) {
+  HKEY key = nullptr;
+  LSTATUS status;
+  if (enabled) {
+    std::wstring command;
+    if (!AutostartCommand(&command)) return false;
+    status = RegCreateKeyExW(HKEY_CURRENT_USER, kRunKey, 0, nullptr, 0,
+                            KEY_SET_VALUE, nullptr, &key, nullptr);
+    if (status != ERROR_SUCCESS) return false;
+    status = RegSetValueExW(key, kAutostartName, 0, REG_SZ,
+                            reinterpret_cast<const BYTE*>(command.c_str()),
+                            static_cast<DWORD>((command.size() + 1) * sizeof(wchar_t)));
+  } else {
+    status = RegOpenKeyExW(HKEY_CURRENT_USER, kRunKey, 0, KEY_SET_VALUE, &key);
+    if (status == ERROR_FILE_NOT_FOUND || status == ERROR_PATH_NOT_FOUND) return true;
+    if (status != ERROR_SUCCESS) return false;
+    status = RegDeleteValueW(key, kAutostartName);
+    if (status == ERROR_FILE_NOT_FOUND) status = ERROR_SUCCESS;
+  }
+  RegCloseKey(key);
+  return status == ERROR_SUCCESS;
+}
 
 std::string ReadSelectedText() {
   using Microsoft::WRL::ComPtr;
@@ -75,6 +127,21 @@ bool FlutterWindow::OnCreate() {
       UnregisterHotKey(GetHandle(), kTranslateHotKey);
       result->Success(flutter::EncodableValue(RegisterHotKey(GetHandle(), kTranslateHotKey,
           MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_SPACE) != 0));
+    } else if (call.method_name() == "isAutostartEnabled") {
+      bool enabled = false;
+      if (ReadAutostart(&enabled)) result->Success(flutter::EncodableValue(enabled));
+      else result->Error("autostart", "Unable to read startup registration");
+    } else if (call.method_name() == "setAutostartEnabled") {
+      const auto* arguments = call.arguments()
+          ? std::get_if<flutter::EncodableMap>(call.arguments()) : nullptr;
+      const bool* enabled = nullptr;
+      if (arguments) {
+        const auto found = arguments->find(flutter::EncodableValue("enabled"));
+        if (found != arguments->end()) enabled = std::get_if<bool>(&found->second);
+      }
+      if (!enabled) result->Error("arguments", "Expected enabled boolean");
+      else if (SetAutostart(*enabled)) result->Success();
+      else result->Error("autostart", "Unable to update startup registration");
     } else { result->NotImplemented(); }
   });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());

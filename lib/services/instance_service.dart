@@ -68,6 +68,7 @@ class InstanceService {
         '/show',
         '/selection',
         '/clipboard',
+        '/autostart',
       ].contains(request.uri.path)) {
         request.response.statusCode = HttpStatus.notFound;
       } else {

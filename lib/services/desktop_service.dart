@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../app_controller.dart';
 import '../app_identity.dart';
+import 'autostart_service.dart';
 import 'instance_service.dart';
 import 'selection_service.dart';
 import 'shortcut_service.dart';
@@ -18,7 +19,9 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     this.instance, {
     PopupService? popup,
     SelectionService? selection,
-  }) : selection = selection ?? SelectionService() {
+    AutostartService? autostart,
+  }) : selection = selection ?? SelectionService(),
+       autostart = autostart ?? AutostartService() {
     this.popup = popup ?? PopupService(controller);
     instance.onRpc = this.popup.handle;
     this.popup.openSettings = () async {
@@ -31,11 +34,16 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   late final PopupService popup;
   final shortcuts = ShortcutService();
   final SelectionService selection;
+  final AutostartService autostart;
+  bool autostartEnabled = false;
+  bool autostartBusy = false;
+  String? autostartError;
   bool trayReady = false;
   bool registering = false;
   bool pinned = false;
   bool _capturing = false;
   bool _quitting = false;
+  bool _disposed = false;
   String shortcutStatus = '正在连接桌面快捷键…';
 
   Future<void> initialize({
@@ -84,12 +92,55 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     } catch (_) {
       controller.message('托盘暂不可用，关闭窗口将退出应用。');
     }
+    await refreshAutostart();
     instance.onAction = handleAction;
     await instance.drainPending();
     notifyListeners();
     if (bindShortcut) {
       unawaited(registerShortcut());
     }
+  }
+
+  Future<void> refreshAutostart() async {
+    if (autostartBusy || _disposed || _quitting) return;
+    autostartBusy = true;
+    _autostartChanged();
+    try {
+      autostartEnabled = await autostart.isEnabled();
+      autostartError = null;
+    } catch (_) {
+      autostartError = '无法读取系统启动设置，可尝试重新切换开关';
+    } finally {
+      autostartBusy = false;
+      _autostartChanged();
+    }
+  }
+
+  Future<void> setAutostartEnabled(bool enabled) async {
+    if (autostartBusy || _disposed || _quitting) return;
+    autostartBusy = true;
+    autostartError = null;
+    _autostartChanged();
+    try {
+      await autostart.setEnabled(enabled);
+      final registered = await autostart.isEnabled();
+      if (registered != enabled) {
+        throw StateError('Autostart registration did not match');
+      }
+      autostartEnabled = registered;
+    } catch (_) {
+      autostartError = '设置失败，请检查系统权限后重试';
+      if (!_disposed && !_quitting) {
+        controller.message('无法修改开机自启动设置，请检查系统权限后重试。');
+      }
+    } finally {
+      autostartBusy = false;
+      _autostartChanged();
+    }
+  }
+
+  void _autostartChanged() {
+    if (!_disposed && !_quitting) notifyListeners();
   }
 
   Future<void> registerShortcut() async {
@@ -111,7 +162,9 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   }
 
   Future<void> handleAction(String action) async {
-    if (action == 'selection') {
+    if (action == 'autostart') {
+      return;
+    } else if (action == 'selection') {
       await capture();
     } else if (action == 'clipboard') {
       await capture(clipboard: true);
@@ -179,6 +232,11 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   }
 
   @override
+  void onWindowFocus() {
+    unawaited(refreshAutostart());
+  }
+
+  @override
   void onWindowClose() async {
     if (trayReady && controller.settings.closeToTray) {
       await windowManager.hide();
@@ -208,6 +266,7 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
 
   @override
   void dispose() {
+    _disposed = true;
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     unawaited(shortcuts.dispose());
