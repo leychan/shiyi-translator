@@ -28,9 +28,7 @@ class TranslatorApp extends StatelessWidget {
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      themeMode: controller.settings.darkMode
-          ? ThemeMode.dark
-          : ThemeMode.light,
+      themeMode: controller.settings.themeMode,
       home: HomePage(controller: controller, desktop: desktop),
     ),
   );
@@ -1236,15 +1234,31 @@ class _HomePageState extends State<HomePage> {
   Widget _settings() => ListView(
     children: [
       _section('外观与窗口', [
-        SwitchListTile(
-          title: const Text('深色模式', style: TextStyle(fontSize: 14)),
-          subtitle: const Text('让夜间阅读更舒适', style: TextStyle(fontSize: 11)),
-          value: app.settings.darkMode,
-          onChanged: (value) {
-            app.settings.darkMode = value;
-            app.settingsChanged();
-            unawaited(app.persist());
-          },
+        ListTile(
+          title: const Text('主题模式', style: TextStyle(fontSize: 14)),
+          subtitle: const Text('可随系统自动切换外观', style: TextStyle(fontSize: 11)),
+          trailing: DropdownButtonHideUnderline(
+            child: DropdownButton<ThemeMode>(
+              key: const Key('theme-mode'),
+              value: app.settings.themeMode,
+              borderRadius: BorderRadius.circular(12),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              items: const [
+                DropdownMenuItem(value: ThemeMode.system, child: Text('跟随系统')),
+                DropdownMenuItem(value: ThemeMode.light, child: Text('浅色')),
+                DropdownMenuItem(value: ThemeMode.dark, child: Text('深色')),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                app.settings.themeMode = value;
+                app.settingsChanged();
+                unawaited(app.persist());
+              },
+            ),
+          ),
         ),
       ]),
       const SizedBox(height: 20),

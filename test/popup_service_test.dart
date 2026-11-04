@@ -55,6 +55,7 @@ void main() {
         ),
       );
       await remote.start();
+      expect(remote.settings.themeMode, main.settings.themeMode);
       expect(remote.results.map((r) => r.provider.id), ['one', 'two']);
       remote.setInput('keep this local draft');
       await main.reorderProviders(0, 1);
@@ -153,6 +154,11 @@ void main() {
       main.settingsChanged();
       await Future<void>.delayed(const Duration(milliseconds: 180));
       expect(remote.input, '正在编辑的草稿');
+      expect(remote.settings.themeMode, main.settings.themeMode);
+      main.settings.themeMode = AppSettings().themeMode;
+      main.settingsChanged();
+      await Future<void>.delayed(const Duration(milliseconds: 180));
+      expect(remote.settings.themeMode, main.settings.themeMode);
       remote.setInput('second');
       await remote.translate();
       await Future<void>.delayed(const Duration(milliseconds: 180));

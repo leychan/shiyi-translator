@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart' show ThemeMode;
+
 enum ProviderKind { compatible, deepl, libreTranslate, baidu }
 
 extension ProviderKindInfo on ProviderKind {
@@ -177,15 +179,27 @@ class AppSettings {
     this.history = const [],
     this.source = 'auto',
     this.target = 'zh',
-    this.darkMode = false,
+    ThemeMode? themeMode,
+    bool? darkMode,
     this.saveHistory = true,
     this.closeToTray = true,
-  });
+  }) : themeMode =
+           themeMode ??
+           (darkMode == null
+               ? ThemeMode.system
+               : darkMode
+               ? ThemeMode.dark
+               : ThemeMode.light);
   List<ProviderConfig> providers;
   List<HistoryEntry> history;
   String source;
   String target;
-  bool darkMode;
+  ThemeMode themeMode;
+
+  // Keep older callers compatible; assigning a bool selects an explicit theme.
+  bool get darkMode => themeMode == ThemeMode.dark;
+  set darkMode(bool value) =>
+      themeMode = value ? ThemeMode.dark : ThemeMode.light;
   bool saveHistory;
   bool closeToTray;
 
@@ -196,6 +210,7 @@ class AppSettings {
     'source': source,
     'target': target,
     'darkMode': darkMode,
+    'themeMode': themeMode.name,
     'saveHistory': saveHistory,
     'closeToTray': closeToTray,
   };
@@ -216,7 +231,13 @@ class AppSettings {
     target: json['target'] != 'auto' && languages.containsKey(json['target'])
         ? json['target'] as String
         : 'zh',
-    darkMode: json['darkMode'] as bool? ?? false,
+    themeMode: switch (json['themeMode']) {
+      'system' => ThemeMode.system,
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => null,
+    },
+    darkMode: json['darkMode'] as bool?,
     saveHistory: json['saveHistory'] as bool? ?? true,
     closeToTray: json['closeToTray'] as bool? ?? true,
   );

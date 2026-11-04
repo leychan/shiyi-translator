@@ -211,9 +211,7 @@ class PopupApp extends StatelessWidget {
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: TranslatorApp.buildTheme(Brightness.light),
       darkTheme: TranslatorApp.buildTheme(Brightness.dark),
-      themeMode: controller.settings.darkMode
-          ? ThemeMode.dark
-          : ThemeMode.light,
+      themeMode: controller.settings.themeMode,
       home: TranslationPopup(
         controller: controller,
         window: window,

@@ -93,7 +93,8 @@ void main() {
     expect(find.textContaining('还没有翻译记录'), findsOneWidget);
     await tester.tap(find.text('偏好设置'));
     await tester.pumpAndSettle();
-    expect(find.text('深色模式'), findsOneWidget);
+    expect(find.text('主题模式'), findsOneWidget);
+    expect(find.text('跟随系统'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

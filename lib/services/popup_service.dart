@@ -70,6 +70,7 @@ class PopupService {
       'source': main.settings.source,
       'target': main.settings.target,
       'darkMode': main.settings.darkMode,
+      'themeMode': main.settings.themeMode.name,
     },
     'results': controller.orderedResults.map((r) => r.toJson()).toList(),
   };
@@ -299,7 +300,7 @@ class RemotePopupController extends AppController {
       Map<String, dynamic>.from(data['settings'] as Map),
     );
     settings.providers = latest.providers;
-    settings.darkMode = latest.darkMode;
+    settings.themeMode = latest.themeMode;
     if (_pendingSettings == 0 || newCapture) {
       settings.source = latest.source;
       settings.target = latest.target;
