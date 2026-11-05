@@ -27,6 +27,11 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Install Linux test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils libglib2.0-bin
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -41,7 +46,7 @@ jobs:
         run: flutter analyze
 
       - name: Run unit and widget tests
-        run: flutter test
+        run: flutter test --reporter expanded
 
   build:
     name: Build ${{ matrix.platform }}
