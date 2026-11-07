@@ -86,6 +86,8 @@ API Key 通过系统凭据存储保存：Linux 需要运行中的 Secret Service
 
 关闭开关会移除拾译的启动项，不影响当前程序运行。开关状态从系统配置读取，不另存一份容易失真的本地布尔值。
 
+Linux 会检查桌面是否实际注册了托盘图标；注册失败或运行中托盘丢失时，会显示主窗口，并每 10 秒清理失败对象、重建托盘和检查实际注册状态；恢复后自动清除托盘告警。开启「关闭窗口后留在托盘」时，托盘不可用会保留窗口，可在偏好设置中明确退出应用。
+
 - Linux：使用 `$XDG_CONFIG_HOME/autostart/dev.justtranslator.just_translator.desktop`，默认位于 `~/.config/autostart/`，遵循 [XDG 自启动规范](https://specifications.freedesktop.org/autostart/latest/)。
 - Windows：使用当前用户的 [Run 注册表项](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys)，值名为 `ShiyiTranslator`。
 - macOS：使用用户目录下的 [LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)，文件为 `~/Library/LaunchAgents/dev.justtranslator.justTranslator.autostart.plist`。

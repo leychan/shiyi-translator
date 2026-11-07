@@ -77,6 +77,7 @@ include(flutter/generated_plugins.cmake)
 # Newer libayatana-appindicator deprecates the constructor used by tray_manager.
 # Keep the upstream compatibility warning visible without treating it as fatal.
 if(TARGET tray_manager_plugin)
+  include(tray_manager_patch.cmake)
   target_compile_options(tray_manager_plugin PRIVATE -Wno-error=deprecated-declarations)
 endif()
 

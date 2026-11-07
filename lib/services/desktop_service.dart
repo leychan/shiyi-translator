@@ -9,6 +9,7 @@ import '../app_controller.dart';
 import '../app_identity.dart';
 import 'autostart_service.dart';
 import 'instance_service.dart';
+import 'linux_tray_status.dart';
 import 'selection_service.dart';
 import 'shortcut_service.dart';
 import 'popup_service.dart';
@@ -20,7 +21,13 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     PopupService? popup,
     SelectionService? selection,
     AutostartService? autostart,
+    Future<bool> Function()? trayAvailable,
   }) : selection = selection ?? SelectionService(),
+       _trayAvailable =
+           trayAvailable ??
+           (Platform.isLinux
+               ? LinuxTrayStatus().isAvailable
+               : () async => true),
        autostart = autostart ?? AutostartService() {
     this.popup = popup ?? PopupService(controller);
     instance.onRpc = this.popup.handle;
@@ -35,6 +42,10 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   final shortcuts = ShortcutService();
   final SelectionService selection;
   final AutostartService autostart;
+  final Future<bool> Function() _trayAvailable;
+  Timer? _trayMonitor;
+  bool _trayCreated = false;
+  Future<void>? _checkingTray;
   bool autostartEnabled = false;
   bool autostartBusy = false;
   String? autostartError;
@@ -68,30 +79,12 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
         }
       },
     );
-    try {
-      await trayManager.setIcon(
-        Platform.isWindows ? 'assets/tray.ico' : 'assets/tray.png',
-      );
-      // Linux AppIndicator exposes its menu without the tooltip method.
-      if (!Platform.isLinux) {
-        await trayManager.setToolTip(appTitle);
-      }
-      await trayManager.setContextMenu(
-        Menu(
-          items: [
-            MenuItem(key: 'show', label: '打开$appName'),
-            MenuItem(key: 'selection', label: '翻译选中文字'),
-            MenuItem(key: 'clipboard', label: '翻译剪贴板'),
-            MenuItem.separator(),
-            MenuItem(key: 'exit', label: '退出$appName'),
-          ],
-        ),
-      );
-      trayReady = true;
-      await windowManager.setPreventClose(true);
-    } catch (_) {
-      controller.message('托盘暂不可用，关闭窗口将退出应用。');
-    }
+    await refreshTray();
+    await windowManager.setPreventClose(true);
+    if (!trayReady) await _showTrayWarning();
+    _trayMonitor = Timer.periodic(const Duration(seconds: 10), (_) {
+      unawaited(refreshTray());
+    });
     await refreshAutostart();
     instance.onAction = handleAction;
     await instance.drainPending();
@@ -99,6 +92,80 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     if (bindShortcut) {
       unawaited(registerShortcut());
     }
+  }
+
+  Future<void> refreshTray() =>
+      _checkingTray ??= _refreshTray().whenComplete(() {
+        _checkingTray = null;
+      });
+
+  Future<void> _createTray() async {
+    // 标记原生资源可能已分配，菜单创建失败时也要在下次重试前清理。
+    _trayCreated = true;
+    await trayManager.setIcon(
+      Platform.isWindows ? 'assets/tray.ico' : 'assets/tray.png',
+    );
+    // Linux AppIndicator 通过菜单提供操作，不支持提示文本接口。
+    if (!Platform.isLinux) {
+      await trayManager.setToolTip(appTitle);
+    }
+    await trayManager.setContextMenu(
+      Menu(
+        items: [
+          MenuItem(key: 'show', label: '打开$appName'),
+          MenuItem(key: 'selection', label: '翻译选中文字'),
+          MenuItem(key: 'clipboard', label: '翻译剪贴板'),
+          MenuItem.separator(),
+          MenuItem(key: 'exit', label: '退出$appName'),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refreshTray() async {
+    if (_disposed || _quitting) return;
+    final wasReady = trayReady;
+    try {
+      if (_trayCreated && await _trayAvailable()) {
+        trayReady = true;
+      } else {
+        trayReady = false;
+        if (wasReady) await _showTrayWarning();
+        if (_disposed || _quitting) return;
+        if (_trayCreated) {
+          await trayManager.destroy();
+          _trayCreated = false;
+        }
+        if (_disposed || _quitting) return;
+        await _createTray();
+        // 原生调用成功后仍需等待桌面异步完成注册。
+        for (var attempt = 0; attempt < 5; attempt++) {
+          if (_disposed || _quitting) return;
+          if (await _trayAvailable()) {
+            trayReady = true;
+            break;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
+      }
+    } catch (error) {
+      trayReady = false;
+      debugPrint('托盘初始化或检查失败，将自动重试：$error');
+      if (wasReady && !_disposed && !_quitting) await _showTrayWarning();
+    }
+    if (_disposed || _quitting) return;
+    if (trayReady && controller.notice == _trayWarning) {
+      controller.clearMessage();
+    }
+    if (wasReady != trayReady) notifyListeners();
+  }
+
+  static const _trayWarning = '托盘暂不可用，已保留主窗口。可从偏好设置退出应用。';
+
+  Future<void> _showTrayWarning() async {
+    debugPrint('System tray unavailable; keeping the main window visible.');
+    controller.message(_trayWarning);
+    await show();
   }
 
   Future<void> refreshAutostart() async {
@@ -221,11 +288,13 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   Future<void> quit() async {
     if (_quitting) return;
     _quitting = true;
+    _trayMonitor?.cancel();
     controller.cancel();
     await popup.dispose();
     await controller.persist();
     await shortcuts.dispose();
-    if (trayReady) await trayManager.destroy();
+    await _checkingTray;
+    if (_trayCreated) await trayManager.destroy();
     await instance.close();
     await windowManager.setPreventClose(false);
     await windowManager.destroy();
@@ -238,8 +307,14 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
 
   @override
   void onWindowClose() async {
-    if (trayReady && controller.settings.closeToTray) {
-      await windowManager.hide();
+    if (controller.settings.closeToTray) {
+      await refreshTray();
+      if (_disposed || _quitting) return;
+      if (trayReady) {
+        await windowManager.hide();
+      } else {
+        await _showTrayWarning();
+      }
     } else {
       await quit();
     }
@@ -267,6 +342,7 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   @override
   void dispose() {
     _disposed = true;
+    _trayMonitor?.cancel();
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     unawaited(shortcuts.dispose());
