@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'app_controller.dart';
 import 'app_identity.dart';
 import 'models.dart';
+import 'widgets/pronunciation.dart';
 import 'services/desktop_service.dart';
 import 'widgets/provider_dialog.dart';
 
@@ -524,6 +525,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+        Pronunciation(text: app.input, language: app.settings.source),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 12, 4),
           child: Row(
@@ -748,6 +750,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
+          if (result.status == ResultStatus.complete)
+            Pronunciation(text: result.text, language: app.settings.target),
           const SizedBox(height: 16),
           if (result.text.isNotEmpty)
             SelectableText(

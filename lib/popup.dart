@@ -12,6 +12,7 @@ import 'app.dart';
 import 'app_controller.dart';
 import 'app_identity.dart';
 import 'models.dart';
+import 'widgets/pronunciation.dart';
 import 'popup_placement.dart';
 import 'services/popup_service.dart';
 
@@ -470,6 +471,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
             border: InputBorder.none,
           ),
         ),
+        Pronunciation(text: app.input, language: app.settings.source),
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 2, 10, 10),
           child: Row(
@@ -705,6 +707,8 @@ class _TranslationPopupState extends State<TranslationPopup> {
                       '已停止',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
+                  if (result.status == ResultStatus.complete)
+                    Pronunciation(text: result.text, language: app.settings.target),
                   Row(
                     children: [
                       IconButton(
