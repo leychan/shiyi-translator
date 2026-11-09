@@ -525,7 +525,14 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        Pronunciation(text: app.input, language: app.settings.source),
+        Padding(
+          padding: const EdgeInsets.only(left: 14, right: 12),
+          child: Pronunciation(
+            text: app.input,
+            language: app.settings.source,
+            visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 12, 4),
           child: Row(

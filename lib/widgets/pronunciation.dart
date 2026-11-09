@@ -6,9 +6,17 @@ import 'package:flutter/material.dart';
 import '../services/pronunciation_service.dart';
 
 class Pronunciation extends StatefulWidget {
-  const Pronunciation({super.key, required this.text, required this.language});
+  const Pronunciation({
+    super.key,
+    required this.text,
+    required this.language,
+    this.service,
+    this.visualDensity,
+  });
   final String text;
   final String language;
+  final PronunciationService? service;
+  final VisualDensity? visualDensity;
 
   @override
   State<Pronunciation> createState() => _PronunciationState();
@@ -19,8 +27,25 @@ class _PronunciationState extends State<Pronunciation> {
   bool _speaking = false;
   bool _loading = false;
   String? _phonetic;
+  Timer? _lookupTimer;
+  String? _lookupError;
   int _generation = 0;
   int _speechGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleLookup();
+  }
+
+  void _scheduleLookup() {
+    _lookupTimer?.cancel();
+    if (PronunciationService.isEnglish(widget.language, widget.text) &&
+        PronunciationService.word(widget.text) != null) {
+      _loading = true;
+      _lookupTimer = Timer(const Duration(milliseconds: 600), _lookup);
+    }
+  }
 
   @override
   void didUpdateWidget(Pronunciation oldWidget) {
@@ -34,11 +59,14 @@ class _PronunciationState extends State<Pronunciation> {
       _speaking = false;
       _loading = false;
       _phonetic = null;
+      _lookupError = null;
+      _scheduleLookup();
     }
   }
 
   @override
   void dispose() {
+    _lookupTimer?.cancel();
     _generation++;
     _speechGeneration++;
     _speech?.kill();
@@ -91,14 +119,22 @@ class _PronunciationState extends State<Pronunciation> {
 
   Future<void> _lookup() async {
     final generation = _generation;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _lookupError = null;
+    });
     try {
-      final value = await PronunciationService.shared.phonetic(widget.text);
+      final value = await (widget.service ?? PronunciationService.shared)
+          .phonetic(widget.text);
       if (mounted && generation == _generation) {
         setState(() => _phonetic = value);
       }
     } catch (error) {
-      if (generation == _generation) _error(error);
+      if (mounted && generation == _generation) {
+        setState(
+          () => _lookupError = error.toString().replaceFirst('Exception: ', ''),
+        );
+      }
     } finally {
       if (mounted && generation == _generation) {
         setState(() => _loading = false);
@@ -111,26 +147,38 @@ class _PronunciationState extends State<Pronunciation> {
     if (!PronunciationService.isEnglish(widget.language, widget.text)) {
       return const SizedBox.shrink();
     }
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        IconButton(
-          tooltip: _speaking ? '停止朗读' : '朗读英文',
-          onPressed: _speak,
-          icon: Icon(
-            _speaking ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
-            size: 18,
-          ),
-        ),
-        if (PronunciationService.word(widget.text) != null)
-          if (_phonetic != null)
-            SelectableText(_phonetic!, style: const TextStyle(fontSize: 13))
-          else
-            TextButton(
-              onPressed: _loading ? null : _lookup,
-              child: Text(_loading ? '查询中…' : '查询音标（联网）'),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          IconButton(
+            tooltip: _speaking ? '停止朗读' : '朗读英文',
+            visualDensity: widget.visualDensity,
+            onPressed: _speak,
+            icon: Icon(
+              _speaking ? Icons.stop_circle_outlined : Icons.volume_up_outlined,
+              size: 18,
             ),
-      ],
+          ),
+          if (PronunciationService.word(widget.text) != null)
+            if (_phonetic != null)
+              SelectableText(_phonetic!, style: const TextStyle(fontSize: 13))
+            else if (_loading)
+              const Text(
+                '音标查询中…',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              )
+            else
+              Tooltip(
+                message: _lookupError ?? '音标来自在线词典',
+                child: TextButton(
+                  onPressed: _lookup,
+                  child: const Text('音标暂不可用，重试'),
+                ),
+              ),
+        ],
+      ),
     );
   }
 }

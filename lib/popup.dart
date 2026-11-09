@@ -471,7 +471,10 @@ class _TranslationPopupState extends State<TranslationPopup> {
             border: InputBorder.none,
           ),
         ),
-        Pronunciation(text: app.input, language: app.settings.source),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 10),
+          child: Pronunciation(text: app.input, language: app.settings.source),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 2, 10, 10),
           child: Row(
