@@ -1,147 +1,192 @@
-# shiyi-translator（拾译）
+# Shiyi Translator (拾译)
 
-Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.6，优先在 KDE Wayland 上验证。
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-## 名字的含义
+A Flutter desktop translator for Linux, Windows, and macOS. Current version: 0.3.7. Validation currently focuses on KDE Wayland.
 
-**Shiyi** 是「拾译」的拼音。「拾」是拾起阅读时遇到的词句，「译」是通过翻译理解它们。选中文字、按下快捷键，就能在文字附近查看译文，让阅读自然地继续。
+## About the name
 
-**拾起文字，读懂世界。**
+**Shiyi** is the pinyin of 拾译. 拾 means picking up words and phrases encountered while reading; 译 means understanding them through translation. Select text and press a shortcut to see its translation nearby, then continue reading.
 
-应用及系统菜单显示名称为「拾译 / Shiyi Translator」。内部应用 ID 和数据目录沿用原有标识，更新后可继续使用已有服务配置、密钥和历史记录。
+**Pick up words. Understand the world.**
 
-## 第一版功能
+The application and desktop menu use “拾译 / Shiyi Translator”. The internal application ID and data directory retain their original identifiers, so existing service settings, credentials, and history remain available after updates.
 
-- 输入翻译，自动检测原文语言，选择目标语言，复制结果。
-- 四种接口：Chat Completions 兼容协议、DeepL、LibreTranslate、百度通用翻译。
-- 同一接口可以配置多个实例，多个服务并行返回，单个服务失败不影响其他服务。
-- 拖拽服务卡片左侧手柄调整顺序，自动保存；主翻译页和独立弹窗按此顺序展示结果，返回速度不影响位置，编辑服务后也保留顺序。
-- 服务管理卡片展示启用状态、接口类型与模型，服务地址仅在编辑表单中显示；编辑表单分组配置，测试与保存操作固定在底部，适配小窗口和深色模式。
-- 兼容接口支持 SSE 流式译文，也可关闭流式输出。
-- 取消、重试、45 秒超时、内存缓存；新请求不会被旧结果覆盖。
-- 本机最近 100 条历史记录，可禁用保存或清空。
-- 托盘、关闭后后台驻留、独立翻译弹窗、置顶、深色模式。
-- 可选开机自启动，登录后静默驻留托盘，设置开关直接读取和管理系统启动项。
-- 快捷键只显示翻译弹窗，主窗口的草稿、页面与窗口尺寸不受影响。
-- 弹窗按原文、语言切换、各服务结果排列，支持复制、修改原文、折叠结果。
-- 弹窗高度随实际内容调整，译文增长、折叠结果或修改原文后自动适配；超出屏幕可用高度时滚动显示。
-- 弹窗关闭或按 Escape 后隐藏；未置顶时失去焦点会隐藏，主进程继续驻留。
-- 快捷键翻译选区；读取不到选区时明确标识剪贴板回退。
-- 单实例运行；`--selection` / `--clipboard` 可由系统快捷键调用。
+## Features
 
-这一版不包含 OCR、鼠标划词后自动弹按钮、无焦点弹窗、第三方插件市场或云同步。
+- Translate typed text, automatically detect the source language, select the target language, and copy results.
+- Four API types: Chat Completions-compatible, DeepL, LibreTranslate, and Baidu General Translation.
+- Configure multiple instances of each API type. Services run concurrently, and individual failures do not interrupt other results.
+- Drag service cards by their left handles to reorder them. Order is saved automatically and applied to both the main window and popup, regardless of response speed. Editing a service preserves its position.
+- Service cards show enabled status, API type, and model. Endpoint addresses appear only in the editor. Grouped settings and fixed test/save controls support small windows and dark mode.
+- Optional SSE streaming for compatible APIs.
+- Cancellation, retries, a 45-second timeout, and an in-memory cache. Older requests cannot overwrite newer results.
+- Up to 100 local history entries, with options to disable history or clear it.
+- System tray, background operation after closing the window, an independent translation popup, always-on-top mode, and dark mode.
+- Optional launch at login, starting quietly in the tray. The setting reads and manages the operating system's startup entry directly.
+- Shortcuts open only the translation popup, preserving the main window's draft, page, and dimensions.
+- Popup sections for source text, language selection, and service results, with copy, editing, and collapse controls.
+- Popup height adapts to its content. Long content scrolls when it exceeds the available screen height.
+- Closing the popup or pressing Escape hides it. An unpinned popup hides when it loses focus; the main process keeps running.
+- Translate selected text with a shortcut, with an explicit indication when clipboard fallback is used.
+- Single-instance operation and `--selection` / `--clipboard` commands for desktop shortcuts.
 
-## 环境
+This version does not include OCR, automatic floating buttons after text selection, no-focus popups, a third-party plugin marketplace, or cloud sync.
 
-本项目开发环境：Flutter 3.47.7 / Dart 3.13.5。Dart 随 Flutter 安装。
+## Development requirements
 
-Manjaro / Arch：
+Development environment: Flutter 3.47.7 / Dart 3.13.5. Dart is included with Flutter.
+
+Manjaro / Arch:
 
 ```bash
 sudo pacman -S --needed base-devel clang cmake ninja pkgconf gtk3 libsecret libayatana-appindicator wl-clipboard
 ```
 
-Ubuntu：
+Ubuntu:
 
 ```bash
 sudo apt install clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev libsecret-1-dev libayatana-appindicator3-dev
 ```
 
-X11 下取词需要 `xclip`；Wayland 下取词需要 `wl-clipboard`。全局快捷键使用 XDG GlobalShortcuts Portal，发行版需提供相应后端。KDE 使用 `xdg-desktop-portal-kde`。
+Selection capture requires `xclip` on X11 or `wl-clipboard` on Wayland. Global shortcuts use the XDG GlobalShortcuts Portal and require a suitable desktop backend, such as `xdg-desktop-portal-kde` on KDE.
 
-Windows 构建需要 Windows 和 Visual Studio 的「使用 C++ 的桌面开发」组件。macOS 构建需要 Mac、Xcode 和 Flutter 插件需要的包管理工具。辅助功能取词需要用户在 macOS「隐私与安全性 → 辅助功能」中授权。当前 macOS 版本作为桌面工具禁用了 App Sandbox，不是 Mac App Store 分发配置。
+Windows builds require Windows and Visual Studio with the “Desktop development with C++” workload. macOS builds require a Mac, Xcode, and the package manager required by Flutter plugins. Selection capture on macOS requires permission under Privacy & Security → Accessibility. App Sandbox is currently disabled for the macOS desktop build; this is not a Mac App Store distribution configuration.
 
-## 运行
+## Run from source
 
 ```bash
 flutter pub get
 flutter run -d linux
 ```
 
-在「翻译服务」中添加服务，填写服务地址、模型（兼容接口）和 API Key。没有预设密钥或自动向公共翻译站发送文本。
+Add a provider under “翻译服务” (Translation Services), then enter its endpoint, model (for compatible APIs), and API key. No credentials are bundled, and translation text is not automatically sent to public translation websites.
 
-添加或编辑服务时，点击「测试连接」即可用当前填写的信息将 `Hello, world!` 从英文翻译为简体中文，显示译文、耗时或失败原因。测试无需保存配置，也不会写入历史；可取消测试，修改信息后旧结果会清除。测试不要求填写显示名称，保存时仍需填写。
+When adding or editing a provider, “测试连接” (Test Connection) translates `Hello, world!` from English to Simplified Chinese using the current form values. It shows the translation, elapsed time, or failure reason. Testing does not require saving and does not add history. You can cancel a test; changing the form clears its previous result. A display name is required to save, but not to test.
 
-在「翻译服务」中按住卡片左侧的拖拽手柄上下移动即可排序。调整后已有译文会同步重排，进行中的翻译继续运行；服务顺序会随配置保存在本机，重启后仍有效。
+Drag a provider's left handle to change its order. Existing results reorder immediately while active translations continue. The order is saved locally and restored after restarting.
 
-| 接口 | 服务地址示例 | 说明 |
+| API type | Example endpoint | Notes |
 | --- | --- | --- |
-| Chat Completions 兼容 | `https://your-provider.example/v1` | 模型 ID 由服务商提供；自定义网关、提供兼容协议的本地模型服务均可 |
-| DeepL Free | `https://api-free.deepl.com` | 需要 DeepL API Free Key |
-| DeepL Pro | `https://api.deepl.com` | 需要对应的 Pro Key |
-| LibreTranslate | `http://localhost:5000` | 连接自己的实例；按实例要求填写 Key |
-| 百度翻译 | `https://fanyi-api.baidu.com` | 填写百度翻译开放平台的 APP ID 和密钥，需开通通用翻译 |
+| Chat Completions-compatible | `https://your-provider.example/v1` | Use the provider's model ID; custom gateways and local models with a compatible API are supported |
+| DeepL Free | `https://api-free.deepl.com` | Requires a DeepL API Free key |
+| DeepL Pro | `https://api.deepl.com` | Requires the corresponding Pro key |
+| LibreTranslate | `http://localhost:5000` | Connect to your own instance; supply a key if required |
+| Baidu Translation | `https://fanyi-api.baidu.com` | Requires an APP ID, secret, and access to Baidu General Translation |
 
-百度通过 POST 表单发送 APP ID、原文、随机 salt 和 MD5 签名。密钥保存在系统钥匙串中，不会作为明文字段发送到接口或进入弹窗通信。日语、韩语、法语、西班牙语会映射到百度语言代码；分段结果按原顺序合并。超过 6000 UTF-8 字节会提示分段，不会截断原文。支持认证、签名、限流和余额等错误提示。
+Baidu requests use POST form data containing the APP ID, source text, random salt, and an MD5 signature. The secret stays in the system credential store; it is not sent as a plain-text request field or included in popup communication. Japanese, Korean, French, and Spanish are mapped to Baidu language codes. Segmented results are joined in order. Requests exceeding 6,000 UTF-8 bytes prompt you to split the text instead of truncating it. Authentication, signature, rate-limit, and balance errors have specific messages.
 
-参考：[百度通用翻译官方文档](https://fanyi-api.baidu.com/doc_bd/21)。
+Reference: [Baidu General Translation documentation](https://fanyi-api.baidu.com/doc_bd/21).
 
-地址可以填写基础地址，也可以填写完整的 `/chat/completions`、`/v2/translate`、`/translate`、`/api/trans/vip/translate` 地址。不要在地址中放密钥或查询参数。端点支持由 Dart HttpClient 读取环境代理配置。
+You can enter a base endpoint or a full `/chat/completions`, `/v2/translate`, `/translate`, or `/api/trans/vip/translate` URL. Do not put credentials or query parameters in endpoint URLs. Requests use Dart HttpClient's environment-based proxy configuration.
 
-API Key 通过系统凭据存储保存：Linux 需要运行中的 Secret Service（例如提供该服务的 KWallet / GNOME Keyring）。保存失败会提示，不会回退到明文文件。没有密钥的本地服务可以留空。
+API keys are stored in the system credential store. Linux requires a running Secret Service, such as one provided by KWallet or GNOME Keyring. Credential storage failures are reported without falling back to plain-text files. Local services that do not need a key can leave it blank.
 
-## 英文读音
+## English pronunciation
 
-主界面和翻译弹窗的英文原文、英文译文均提供喇叭按钮，点击朗读，再次点击停止。原文选择「自动检测」时，仅对纯英文字符内容显示入口。输入英文单词后会自动通过 [Free Dictionary API](https://dictionaryapi.dev/) 查询并显示音标，单词会发送至该服务（停止输入 600 毫秒后查询）；句子支持朗读，不提供整句音标。音标仅在内存中缓存，查询失败不影响翻译。
+English source text and translations have a speaker button in both the main window and popup. Click to read aloud; click again to stop. When the source language is set to automatic detection, the control appears only for English-only text. English words automatically get phonetic transcriptions from the [Free Dictionary API](https://dictionaryapi.dev/): the word is sent to that service after 600 milliseconds without input changes. Sentences support read-aloud, but not full-sentence phonetic transcriptions. Transcriptions are cached only in memory, and lookup failures do not affect translation.
 
-朗读使用系统语音，不调用翻译接口。Linux 需安装 `espeak-ng`（兼容 `espeak`）并配置可用音频输出；Windows 使用系统英文语音，macOS 使用 Samantha 英文语音。未安装或播放失败时会显示提示。
+Read-aloud uses system speech tools rather than translation APIs. Linux requires `espeak-ng` (or `espeak`) and working audio output. Windows uses an installed English system voice; macOS uses the Samantha English voice. Missing tools or playback failures display an error.
 
-## 开机自启动
+## Launch at login
 
-在「偏好设置 → 启动与后台」中开启「开机自启动」。默认关闭，只管理当前用户的拾译启动项。开启后下次登录桌面时通过 `--autostart` 启动，主窗口保持隐藏，托盘和快捷翻译可用；托盘不可用时显示主窗口。已有实例运行时，自启动命令不会重复打开窗口或读取选区。
+Enable “开机自启动” (Launch at Login) under “偏好设置 → 启动与后台” (Preferences → Startup & Background). It is disabled by default and manages only the current user's Shiyi startup entry. At the next desktop login, `--autostart` starts the app with the main window hidden and tray/shortcut translation available. If the tray is unavailable, the main window appears. An existing instance prevents startup from reopening a window or capturing selected text.
 
-关闭开关会移除拾译的启动项，不影响当前程序运行。开关状态从系统配置读取，不另存一份容易失真的本地布尔值。
+Disabling the setting removes the startup entry without stopping the running application. Its state comes directly from the operating system configuration rather than a separate stored boolean.
 
-Linux 会检查桌面是否实际注册了托盘图标；注册失败或运行中托盘丢失时，会显示主窗口，并每 10 秒清理失败对象、重建托盘和检查实际注册状态；恢复后自动清除托盘告警。开启「关闭窗口后留在托盘」时，托盘不可用会保留窗口，可在偏好设置中明确退出应用。
+On Linux, the app checks whether the desktop actually registered its tray icon. If registration fails or the tray disappears, the main window is shown. Every 10 seconds, the app cleans up failed tray objects, attempts to recreate the tray, and checks registration. Recovery clears the tray warning. If “keep running in the tray after closing” is enabled but the tray is unavailable, the window stays visible; you can explicitly quit from Preferences.
 
-- Linux：使用 `$XDG_CONFIG_HOME/autostart/dev.justtranslator.just_translator.desktop`，默认位于 `~/.config/autostart/`，遵循 [XDG 自启动规范](https://specifications.freedesktop.org/autostart/latest/)。
-- Windows：使用当前用户的 [Run 注册表项](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys)，值名为 `ShiyiTranslator`。
-- macOS：使用用户目录下的 [LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html)，文件为 `~/Library/LaunchAgents/dev.justtranslator.justTranslator.autostart.plist`。
+- Linux: `$XDG_CONFIG_HOME/autostart/dev.justtranslator.just_translator.desktop`, defaulting to `~/.config/autostart/`, following the [XDG Autostart specification](https://specifications.freedesktop.org/autostart/latest/).
+- Windows: the current user's [Run registry key](https://learn.microsoft.com/en-us/windows/win32/setupapi/run-and-runonce-registry-keys), using the value name `ShiyiTranslator`.
+- macOS: a per-user [LaunchAgent](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html) at `~/Library/LaunchAgents/dev.justtranslator.justTranslator.autostart.plist`.
 
-自启动测试在临时目录中创建并移除测试项，不会开启开发者机器的真实自启动。Windows、macOS 的原生桥接仍需在对应系统上编译和验证。
+Autostart tests create and remove entries in temporary directories without enabling startup on the development machine. Native Windows and macOS integrations still require building and validation on their respective systems.
 
-## 快捷取词
+## Translate selected text
 
-默认申请 `Ctrl + Alt + Space`（macOS 为 Control + Option + Space）。Linux 由桌面 Portal 绑定，可能出现系统授权/配置窗口，实际快捷键以系统设置为准。
+The default requested shortcut is `Ctrl + Alt + Space` (Control + Option + Space on macOS). Linux registers it through the desktop Portal, which may show a permission or configuration dialog. The actual binding is determined by system settings.
 
-1. 在其他应用中选中文字。
-2. 按全局快捷键。
-3. 应用先读取选区，再单独展示翻译弹窗。主窗口保持原来的状态。
+1. Select text in another application.
+2. Press the global shortcut.
+3. The app captures the selection and opens the independent translation popup. The main window remains unchanged.
 
-Linux Wayland 读取 PRIMARY selection；X11 使用 xclip；Windows 使用 UI Automation；macOS 使用 Accessibility API。目标应用和桌面环境决定取词是否可用，没有任意应用都能取词的保证。失败时尝试剪贴板，并在原文底部标注来源；也可先手动复制再调用剪贴板翻译。
+Linux Wayland uses the PRIMARY selection; X11 uses xclip; Windows uses UI Automation; macOS uses the Accessibility API. Selection capture depends on the target application and desktop environment and is not guaranteed in every application. If capture fails, the app tries the clipboard and labels the source below the input. You can also copy text manually and invoke clipboard translation.
 
-若 Portal 快捷键不可用，可以在 KDE 系统设置中添加自定义快捷键，命令为：
+If Portal shortcuts are unavailable, add custom shortcuts in KDE System Settings with these commands:
 
 ```bash
 /absolute/path/to/just_translator --selection
 /absolute/path/to/just_translator --clipboard
 ```
 
-再次执行程序会把动作发送给已经运行的实例。内部 IPC 仅绑定本机随机端口并验证随机令牌，不提供公开翻译 API。
+Launching the program again forwards the action to the existing instance. Internal IPC binds only to a random localhost port and validates a random token; it does not expose a public translation API.
 
-Wayland 下置顶、焦点激活由窗口管理器决定，不能保证和 X11 完全一致。翻译弹窗是独立窗口，不会将主界面缩小或带到前台。弹窗会优先在取词时的鼠标位置附近出现，空间不足时向左/向上翻转，并限制在该显示器的可用区域内。
+Always-on-top behavior and focus activation on Wayland depend on the window manager and may differ from X11. The translation popup is a separate window; it does not resize or bring the main window to the front. It appears near the pointer captured when translation was invoked, flips left or upward when needed, and stays within that monitor's work area.
 
-## 构建与安装
+## Build and install
 
 ```bash
 flutter build linux --release
 ```
 
-程序在 `build/linux/x64/release/bundle/just_translator`。分发时需要携带整个 `bundle` 目录。
+The executable is at `build/linux/x64/release/bundle/just_translator`. Distribute the entire `bundle` directory.
 
-可选安装到用户目录并创建应用菜单入口（不会改动系统目录）：
+Optionally install into the current user's directory and create an application menu entry without changing system directories:
 
 ```bash
 bash tools/install-linux.sh
 ```
 
-菜单入口使用的 Desktop ID 与应用 ID 一致，便于桌面 Portal 识别。Windows 和 macOS 工程也已生成并补充了原生快捷键/取词桥接，需分别在对应系统编译验证。
+The desktop entry uses the same Desktop ID as the application ID so desktop Portals can recognize it. Windows and macOS projects include native shortcut and selection-capture integrations, but must be built and validated on their respective platforms.
 
-## 数据
+## Linux installation packages
 
-`settings.json` 保存在系统应用数据目录中（Linux 通常为 `$XDG_DATA_HOME/dev.justtranslator.just_translator/`，未设置时位于 `~/.local/share/` 下）。包含服务配置、偏好和可选翻译历史，不含 API Key。密钥在系统凭据存储中按服务 ID 分开保存。缓存仅在内存中。
+Linux packaging produces both `.deb` and Arch `.pkg.tar.zst` installers for x86_64. They install into `/opt/shiyi-translator` and add a command, icon, and application menu entry. Packages declare `espeak-ng` as a dependency for English read-aloud; `wl-clipboard` and `xclip` are recommended or optional dependencies for selection capture. Saving API keys still requires a running desktop Secret Service.
 
-## 验证
+On Ubuntu, run from the download directory, substituting the actual package version:
+
+```bash
+sudo apt install ./shiyi-translator_0.3.7-11_amd64.deb
+```
+
+On Arch Linux:
+
+```bash
+sudo pacman -U ./shiyi-translator-0.3.7-11-x86_64.pkg.tar.zst
+```
+
+After installation, open “拾译” / “Shiyi Translator” from the application menu, or run `just_translator`. Fully quit the old instance before upgrading. Uninstall with `sudo apt remove shiyi-translator` or `sudo pacman -R shiyi-translator`; user settings and history are retained.
+
+Package an existing local build:
+
+```bash
+python3 tools/package-linux.py
+```
+
+Packaging requires Python 3, `dpkg-deb`, `bsdtar`, `zstd`, and `readelf`. On Ubuntu, install the `dpkg`, `libarchive-tools`, `zstd`, and `binutils` packages. On Arch, install `dpkg`, `libarchive`, `zstd`, and `binutils`. Output goes into `dist/`. The version comes from `pubspec.yaml`; for example, `0.3.7+11` becomes package version `0.3.7-11`.
+
+Packages scan the build output to declare the minimum glibc version. Build on a system old enough for your intended targets. The release workflow builds on Ubuntu 22.04; packages built locally on Arch are not guaranteed to run on Ubuntu 22.04. Check the dependencies declared in the package.
+
+## Publish a GitHub Release
+
+Pushing a `v*` version tag triggers static analysis and tests, followed by Linux, Windows, and macOS builds. After all three platforms succeed, the workflow creates the corresponding GitHub Release, generates release notes, and uploads the packages. The release becomes public after uploading. Rerunning the workflow for the same tag updates assets with matching names.
+
+Before publishing, update the version in `pubspec.yaml`, commit and push the code, then tag that commit. For example, for version `0.3.7+11`:
+
+```bash
+git tag v0.3.7
+git push origin v0.3.7
+```
+
+Release assets include `shiyi-translator-linux-x64.tar.gz`, `shiyi-translator-windows-x64.zip`, and `shiyi-translator-macos.zip`. Linux also includes `shiyi-translator_VERSION-BUILD_amd64.deb` and `shiyi-translator-VERSION-BUILD-x86_64.pkg.tar.zst`. For the `.tar.gz` package, keep the complete `bundle` directory and install `espeak-ng` separately. Windows and macOS currently ship unsigned application archives.
+
+Ordinary `main` pushes, pull requests, and manual runs produce Actions Artifacts without publishing a Release. Publishing uses the built-in GitHub Actions token; only the release job has repository contents write permission. No additional secret is required.
+
+## Data storage
+
+`settings.json` is stored in the system application data directory. On Linux this is usually `$XDG_DATA_HOME/dev.justtranslator.just_translator/`, or `~/.local/share/dev.justtranslator.just_translator/` when `XDG_DATA_HOME` is unset. It contains provider settings, preferences, and optional translation history, but no API keys. Keys are stored separately by provider ID in the system credential store. Caches exist only in memory.
+
+## Validation
 
 ```bash
 flutter analyze
@@ -150,28 +195,28 @@ flutter build linux --release
 flutter test integration_test/desktop_smoke_test.dart -d linux
 ```
 
-单元测试使用本机临时 HTTP 服务验证真实请求、百度签名、表单编码、语言映射和流式解析，不使用付费 Key。集成测试使用测试配置和固定测试译文验证界面，截图保存到 `build/screenshots/`，不会调用真实翻译服务。
+Unit tests use temporary local HTTP servers to verify real requests, Baidu signatures, form encoding, language mappings, and streaming parsing without paid API keys. Integration tests use test settings and fixed translations to verify the interface. Screenshots are saved to `build/screenshots/`; real translation services are not called.
 
-## 代码
+## Source layout
 
-- `lib/models.dart`：服务配置、结果和历史数据。
-- `lib/services/translation_service.dart`：四种协议、百度签名、SSE、超时和取消。
-- `lib/app_controller.dart`：并发翻译、缓存、历史与状态。
-- `lib/services/selection_service.dart`：平台取词与剪贴板回退。
-- `lib/services/shortcut_service.dart`：Linux Portal 和原生快捷键桥接。
-- `lib/services/instance_service.dart`：单实例与本机命令转发。
-- `lib/services/storage_service.dart`：配置原子写入与系统密钥存储。
-- `lib/app.dart`、`lib/widgets/`：界面。
-- `windows/runner/`、`macos/Runner/`：原生取词与全局快捷键。
+- `lib/models.dart`: provider settings, results, and history data.
+- `lib/services/translation_service.dart`: the four API protocols, Baidu signing, SSE, timeouts, and cancellation.
+- `lib/app_controller.dart`: concurrent translation, caching, history, and state.
+- `lib/services/selection_service.dart`: platform selection capture and clipboard fallback.
+- `lib/services/shortcut_service.dart`: Linux Portal and native shortcut integration.
+- `lib/services/instance_service.dart`: single-instance operation and local command forwarding.
+- `lib/services/storage_service.dart`: atomic settings writes and system credential storage.
+- `lib/app.dart` and `lib/widgets/`: user interface.
+- `windows/runner/` and `macos/Runner/`: native selection capture and global shortcuts.
 
-## 独立弹窗
+## Independent popup
 
-快捷键、托盘取词和 `--selection` / `--clipboard` 都只打开翻译弹窗。点击主窗口右上角弹窗按钮可把当前原文送到弹窗。首次冷启动取词时，主窗口也保持隐藏。弹窗右上角的设置按钮才会打开主窗口的翻译服务页面。
+Shortcuts, tray selection capture, and `--selection` / `--clipboard` open only the translation popup. The popup button at the top right of the main window sends the current source text to it. A cold start for selection capture also keeps the main window hidden. The popup's settings button opens the Translation Services page in the main window.
 
-弹窗采用独立原生窗口，翻译请求、历史记录与凭据仍由主进程统一管理。通信使用经过令牌验证的本机 IPC；传输状态不包含 API Key 或历史记录。重复取词复用弹窗，退出程序时一并结束弹窗。
+The popup is an independent native window. The main process continues to manage translation requests, history, and credentials. Communication uses authenticated local IPC and does not transmit API keys or history. Repeated capture reuses the popup, and quitting the application terminates it.
 
-相关代码：`lib/popup.dart`（界面和窗口行为）、`lib/services/popup_service.dart`（状态和窗口生命周期）。
+Relevant files: `lib/popup.dart` for the interface and window behavior, and `lib/services/popup_service.dart` for state and window lifecycle.
 
-## 鼠标附近定位
+## Positioning near the pointer
 
-快捷键触发时先保存鼠标位置和所在显示器的可用区域，再取词和展示弹窗。位置使用逻辑像素，支持负坐标显示器和屏幕边缘翻转。Windows、macOS、X11 使用屏幕插件；KDE Wayland 使用临时 KWin 脚本定位，仅匹配本应用弹窗进程，不会修改其他应用窗口或安装全局窗口规则。脚本在更新定位或退出时卸载，弹窗仍可手动拖动。其他 Wayland 桌面不保证支持程序指定位置，取不到有效位置时保留窗口管理器的默认位置。
+When the shortcut is invoked, the app first captures the pointer position and the monitor's work area, then retrieves the selected text and displays the popup. Positioning uses logical pixels, supports monitors with negative coordinates, and flips the popup near screen edges. Windows, macOS, and X11 use the screen plugin. KDE Wayland uses a temporary KWin script that matches only this application's popup process; it does not modify other windows or install global window rules. The script is unloaded after positioning updates or when the app exits. You can still drag the popup manually. Other Wayland desktops may not support application-controlled positioning; when the location cannot be obtained, the window manager's default placement is retained.
