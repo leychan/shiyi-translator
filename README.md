@@ -155,7 +155,9 @@ On Arch Linux:
 sudo pacman -U ./shiyi-translator-0.3.7-11-x86_64.pkg.tar.zst
 ```
 
-After installation, open “拾译” / “Shiyi Translator” from the application menu, or run `just_translator`. Fully quit the old instance before upgrading. Uninstall with `sudo apt remove shiyi-translator` or `sudo pacman -R shiyi-translator`; user settings and history are retained.
+Once the first AUR release is published, you can also install it with an AUR helper such as `yay -S shiyi-translator-bin`.
+
+After installation, open “拾译” / “Shiyi Translator” from the application menu, or run `just_translator`. Fully quit the old instance before upgrading. To uninstall, use `sudo apt remove shiyi-translator`, `sudo pacman -R shiyi-translator`, or `sudo pacman -R shiyi-translator-bin` for the AUR package. User settings and history are retained.
 
 Package an existing local build:
 
@@ -169,7 +171,7 @@ Packages scan the build output to declare the minimum glibc version. Build on a 
 
 ## Publish a GitHub Release
 
-Pushing a `v*` version tag triggers static analysis and tests, followed by Linux, Windows, and macOS builds. After all three platforms succeed, the workflow creates the corresponding GitHub Release, generates release notes, and uploads the packages. The release becomes public after uploading. Rerunning the workflow for the same tag updates assets with matching names.
+Pushing a `v*` version tag triggers static analysis and tests, followed by Linux, Windows, and macOS builds. After all three platforms succeed, the workflow creates the corresponding GitHub Release, generates release notes, and uploads the packages. The release becomes public after uploading. Rerunning the same tag keeps the public Arch asset available at the checksum used by AUR and updates the other assets with matching names.
 
 Before publishing, update the version in `pubspec.yaml`, commit and push the code, then tag that commit. For example, for version `0.3.7+11`:
 
@@ -180,7 +182,13 @@ git push origin v0.3.7
 
 Release assets include `shiyi-translator-linux-x64.tar.gz`, `shiyi-translator-windows-x64.zip`, and `shiyi-translator-macos.zip`. Linux also includes `shiyi-translator_VERSION-BUILD_amd64.deb` and `shiyi-translator-VERSION-BUILD-x86_64.pkg.tar.zst`. For the `.tar.gz` package, keep the complete `bundle` directory and install `espeak-ng` separately. Windows and macOS currently ship unsigned application archives.
 
-Ordinary `main` pushes, pull requests, and manual runs produce Actions Artifacts without publishing a Release. Publishing uses the built-in GitHub Actions token; only the release job has repository contents write permission. No additional secret is required.
+Ordinary `main` pushes, pull requests, and manual runs produce Actions Artifacts. The GitHub Release job uses the built-in GitHub Actions token.
+
+### Publish to AUR
+
+After GitHub publishes a tagged release in `leychan/shiyi-translator`, the workflow updates `shiyi-translator-bin` on AUR. Its `PKGBUILD` downloads and verifies the x86_64 Arch installer from the public GitHub Release.
+
+For the one-time setup, add a dedicated SSH public key to the AUR account that can publish `shiyi-translator-bin`. Save the corresponding passphrase-free private key as the `AUR_SSH_PRIVATE_KEY` repository secret under **Settings → Secrets and variables → Actions**. The first successful run creates the AUR package if the name is available. If the AUR job fails after GitHub publishes the release, fix the cause and rerun the failed job. See the [AUR submission guidelines](https://wiki.archlinux.org/title/AUR_submission_guidelines).
 
 ## Data storage
 

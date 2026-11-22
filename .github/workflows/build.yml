@@ -143,6 +143,8 @@ jobs:
     needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 10
+    outputs:
+      arch_asset: ${{ steps.publish.outputs.arch_asset }}
     permissions:
       contents: write
     steps:
@@ -154,6 +156,7 @@ jobs:
           merge-multiple: true
 
       - name: Publish release packages
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -173,17 +176,121 @@ jobs:
             echo 'Expected one Debian and one Arch package' >&2
             exit 1
           fi
-          packages+=("${deb_packages[@]}" "${arch_packages[@]}")
-          for package in "${packages[@]}"; do
+          packages+=("${deb_packages[@]}")
+          arch_package=${arch_packages[0]}
+          arch_asset=${arch_package##*/}
+          for package in "${packages[@]}" "$arch_package"; do
             if [[ ! -s "$package" ]]; then
               echo "Missing release package: $package" >&2
               exit 1
             fi
           done
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+          if release=$(gh release view "$RELEASE_TAG" --json isDraft,assets 2>/dev/null); then
+            # AUR recipes use the checksum of the public Arch asset, so keep it on reruns.
+            keep_arch=$(jq -r --arg asset "$arch_asset" \
+              '.isDraft == false and any(.assets[]; .name == $asset and .size > 0)' \
+              <<< "$release")
+            if [[ "$keep_arch" == false ]]; then
+              packages+=("$arch_package")
+            fi
             gh release upload "$RELEASE_TAG" "${packages[@]}" --clobber
           else
-            gh release create "$RELEASE_TAG" "${packages[@]}" \
+            gh release create "$RELEASE_TAG" "${packages[@]}" "$arch_package" \
               --verify-tag --draft --title "$RELEASE_TAG" --generate-notes
           fi
           gh release edit "$RELEASE_TAG" --draft=false
+          echo "arch_asset=$arch_asset" >> "$GITHUB_OUTPUT"
+
+  aur:
+    name: Publish to AUR
+    if: github.repository == 'leychan/shiyi-translator'
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: aur-shiyi-translator-bin
+      cancel-in-progress: false
+    env:
+      ARCH_IMAGE: archlinux:base-devel
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Prepare AUR package metadata
+        env:
+          AUR_PACKAGE_DIR: ${{ runner.temp }}/shiyi-aur-package
+          RELEASE_TAG: ${{ github.ref_name }}
+          ARCH_ASSET: ${{ needs.release.outputs.arch_asset }}
+        shell: bash
+        run: |
+          mkdir -p "$AUR_PACKAGE_DIR"
+          archive="$AUR_PACKAGE_DIR/$ARCH_ASSET"
+          source_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/$ARCH_ASSET"
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            --output "$archive" "$source_url"
+          python3 tools/prepare-aur.py "$archive" "$RELEASE_TAG" "$source_url"
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --volume "$AUR_PACKAGE_DIR:/package" --workdir /package \
+            "$ARCH_IMAGE" bash -e -c '
+              makepkg --printsrcinfo > .SRCINFO
+              makepkg --nodeps --nocolor --nosign
+            '
+
+      - name: Push package to AUR
+        env:
+          AUR_PACKAGE_DIR: ${{ runner.temp }}/shiyi-aur-package
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$AUR_SSH_PRIVATE_KEY" ]]; then
+            echo '::error::Set the AUR_SSH_PRIVATE_KEY repository secret to publish to AUR.'
+            exit 1
+          fi
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          (umask 077; printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > "$work/key")
+          unset AUR_SSH_PRIVATE_KEY
+
+          # Verify the scanned key against the fingerprint published by Arch Linux.
+          # https://archlinux.org/news/aur-migration-new-ssh-hostkeys/
+          ssh-keyscan -T 10 -t ed25519 aur.archlinux.org > "$work/known_hosts"
+          fingerprint=$(ssh-keygen -E sha256 -lf "$work/known_hosts" | awk '{print $2}')
+          if [[ "$fingerprint" != 'SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4' ]]; then
+            echo '::error::AUR SSH host key does not match the Arch Linux fingerprint.'
+            exit 1
+          fi
+          export GIT_SSH_COMMAND="ssh -i '$work/key' -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$work/known_hosts'"
+          git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/shiyi-translator-bin.git "$work/repo"
+          cd "$work/repo"
+
+          # An older tag may finish after a newer one. Compare using Arch's version rules.
+          package_version() {
+            awk '$1 == "epoch" { epoch = $3 ":" }
+                 $1 == "pkgver" { version = $3 }
+                 $1 == "pkgrel" { release = $3 }
+                 END {
+                   if (!version || !release) exit 1
+                   print epoch version "-" release
+                 }' "$1"
+          }
+          version=$(package_version "$AUR_PACKAGE_DIR/.SRCINFO")
+          if [[ -f .SRCINFO ]]; then
+            current=$(package_version .SRCINFO)
+            comparison=$(docker run --rm "$ARCH_IMAGE" vercmp "$version" "$current")
+            if [[ "$comparison" == -1 ]]; then
+              echo "AUR already has a newer version ($current)."
+              exit 0
+            fi
+          fi
+
+          cp "$AUR_PACKAGE_DIR/PKGBUILD" "$AUR_PACKAGE_DIR/.SRCINFO" .
+          git add -- PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "AUR already has this package ($version)."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m "发布拾译 $version"
+          git push origin HEAD:master

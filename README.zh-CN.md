@@ -155,7 +155,9 @@ Arch Linux 执行：
 sudo pacman -U ./shiyi-translator-0.3.7-11-x86_64.pkg.tar.zst
 ```
 
-安装完成后，在应用菜单中打开「拾译」，或运行 `just_translator`。升级时先完全退出旧实例，再安装新版。卸载分别使用 `sudo apt remove shiyi-translator` 或 `sudo pacman -R shiyi-translator`，用户配置和历史记录保留。
+AUR 首次发布后，也可以用 `yay -S shiyi-translator-bin` 安装。
+
+安装完成后，在应用菜单中打开「拾译」，或运行 `just_translator`。升级时先完全退出旧实例，再安装新版。卸载分别使用 `sudo apt remove shiyi-translator`、`sudo pacman -R shiyi-translator`，通过 AUR 安装时使用 `sudo pacman -R shiyi-translator-bin`。用户配置和历史记录会保留。
 
 本地打包已有构建产物：
 
@@ -169,7 +171,7 @@ python3 tools/package-linux.py
 
 ## GitHub Release 发布
 
-推送 `v*` 版本标签时，GitHub Actions 会先执行静态检查和测试，再分别构建 Linux、Windows、macOS。三个平台全部构建成功后，自动创建对应的 GitHub Release，生成发布说明并上传压缩包；上传完成后公开发布。重新运行同一标签的工作流会更新同名附件。
+推送 `v*` 版本标签时，GitHub Actions 会先执行静态检查和测试，再分别构建 Linux、Windows、macOS。三个平台全部构建成功后，自动创建对应的 GitHub Release，生成发布说明并上传压缩包，上传完成后公开发布。重新运行同一标签时，会保留已公开的 Arch 安装包供 AUR 校验，并更新其他同名附件。
 
 发布前先更新 `pubspec.yaml` 中的版本号，提交并推送代码，再为该提交创建对应标签。例如版本为 `0.3.7+11` 时：
 
@@ -180,7 +182,13 @@ git push origin v0.3.7
 
 Release 附件为 `shiyi-translator-linux-x64.tar.gz`、`shiyi-translator-windows-x64.zip`、`shiyi-translator-macos.zip`。Linux 另提供 `shiyi-translator_版本-构建号_amd64.deb` 和 `shiyi-translator-版本-构建号-x86_64.pkg.tar.zst`，随 Release 一并上传。使用 `.tar.gz` 时需携带完整 `bundle` 目录运行，并另行安装 `espeak-ng`。Windows、macOS 当前提供未签名的应用压缩包。
 
-普通 `main` 推送、Pull Request 和手动运行仍只生成 Actions Artifacts，不发布 Release。发布使用 GitHub Actions 自带的令牌，仅发布任务具有仓库内容写入权限，无需额外配置密钥。
+普通 `main` 推送、Pull Request 和手动运行只生成 Actions Artifacts。GitHub Release 使用 GitHub Actions 自带的令牌发布。
+
+### 发布到 AUR
+
+`leychan/shiyi-translator` 的 GitHub Release 公开后，工作流会自动更新 AUR 上的 `shiyi-translator-bin`。AUR 的 `PKGBUILD` 会下载 Release 中的 x86_64 Arch 安装包并校验文件。
+
+首次配置时，在有权发布 `shiyi-translator-bin` 的 AUR 账号中添加专用 SSH 公钥。然后在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中，将对应的无口令私钥保存为 `AUR_SSH_PRIVATE_KEY`。如果包名可用，首次成功运行会创建 AUR 包。若 GitHub Release 已发布而 AUR 步骤失败，修复原因后可单独重跑失败任务。参见 [AUR 提交指南](https://wiki.archlinux.org/title/AUR_submission_guidelines)。
 
 ## 数据
 
