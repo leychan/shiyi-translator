@@ -190,6 +190,8 @@ Release 附件为 `shiyi-translator-linux-x64.tar.gz`、`shiyi-translator-window
 
 首次配置时，在有权发布 `shiyi-translator-bin` 的 AUR 账号中添加专用 SSH 公钥。然后在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中，将对应的无口令私钥保存为 `AUR_SSH_PRIVATE_KEY`。如果包名可用，首次成功运行会创建 AUR 包。若 GitHub Release 已发布而 AUR 步骤失败，修复原因后可单独重跑失败任务。参见 [AUR 提交指南](https://wiki.archlinux.org/title/AUR_submission_guidelines)。
 
+要用已有的 GitHub Release 补发 AUR，把包含此工作流的提交推送为 `aur/vX.Y.Z` 标签。例如 `git push origin HEAD:refs/tags/aur/v0.3.7` 会将 GitHub Release `v0.3.7` 里的 Arch 安装包发布到 AUR。
+
 ## 数据
 
 `settings.json` 保存在系统应用数据目录中（Linux 通常为 `$XDG_DATA_HOME/dev.justtranslator.just_translator/`，未设置时位于 `~/.local/share/` 下）。包含服务配置、偏好和可选翻译历史，不含 API Key。密钥在系统凭据存储中按服务 ID 分开保存。缓存仅在内存中。

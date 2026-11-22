@@ -190,6 +190,8 @@ After GitHub publishes a tagged release in `leychan/shiyi-translator`, the workf
 
 For the one-time setup, add a dedicated SSH public key to the AUR account that can publish `shiyi-translator-bin`. Save the corresponding passphrase-free private key as the `AUR_SSH_PRIVATE_KEY` repository secret under **Settings → Secrets and variables → Actions**. The first successful run creates the AUR package if the name is available. If the AUR job fails after GitHub publishes the release, fix the cause and rerun the failed job. See the [AUR submission guidelines](https://wiki.archlinux.org/title/AUR_submission_guidelines).
 
+To send an existing GitHub Release to AUR, push an `aur/vX.Y.Z` tag pointing to a commit with this workflow. For example, `git push origin HEAD:refs/tags/aur/v0.3.7` publishes the Arch installer from GitHub Release `v0.3.7` to AUR.
+
 ## Data storage
 
 `settings.json` is stored in the system application data directory. On Linux this is usually `$XDG_DATA_HOME/dev.justtranslator.just_translator/`, or `~/.local/share/dev.justtranslator.just_translator/` when `XDG_DATA_HOME` is unset. It contains provider settings, preferences, and optional translation history, but no API keys. Keys are stored separately by provider ID in the system credential store. Caches exist only in memory.

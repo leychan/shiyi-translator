@@ -3,7 +3,7 @@ name: Build Desktop Apps
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['v*', 'aur/v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -21,6 +21,7 @@ env:
 jobs:
   check:
     name: Analyze and Test
+    if: ${{ !startsWith(github.ref, 'refs/tags/aur/') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -203,7 +204,10 @@ jobs:
 
   aur:
     name: Publish to AUR
-    if: github.repository == 'leychan/shiyi-translator'
+    if: >-
+      ${{ !cancelled() && github.repository == 'leychan/shiyi-translator' &&
+          (needs.release.result == 'success' ||
+           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/aur/v'))) }}
     needs: release
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -223,8 +227,29 @@ jobs:
           AUR_PACKAGE_DIR: ${{ runner.temp }}/shiyi-aur-package
           RELEASE_TAG: ${{ github.ref_name }}
           ARCH_ASSET: ${{ needs.release.outputs.arch_asset }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
+          # An aur/v* tag reuses a public release without rebuilding it.
+          if [[ "$RELEASE_TAG" == aur/* ]]; then
+            RELEASE_TAG=${RELEASE_TAG#aur/}
+            if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo '::error::Use an AUR publication tag in the form aur/vX.Y.Z.'
+              exit 1
+            fi
+            release=$(gh release view "$RELEASE_TAG" --json isDraft,assets)
+            if ! ARCH_ASSET=$(jq -er --arg prefix "shiyi-translator-${RELEASE_TAG#v}-" '
+              select(.isDraft == false)
+              | [.assets[] | select(.size > 0) | .name
+                 | select(startswith($prefix) and endswith("-x86_64.pkg.tar.zst"))]
+              | select(length == 1) | .[0]
+            ' <<< "$release"); then
+              echo "::error::Expected one Arch installer in the public $RELEASE_TAG release."
+              exit 1
+            fi
+          fi
+
           mkdir -p "$AUR_PACKAGE_DIR"
           archive="$AUR_PACKAGE_DIR/$ARCH_ASSET"
           source_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/$ARCH_ASSET"
