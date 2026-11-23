@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../interface_text.dart';
 import '../services/pronunciation_service.dart';
 
 class Pronunciation extends StatefulWidget {
@@ -76,7 +77,11 @@ class _PronunciationState extends State<Pronunciation> {
   void _error(Object error) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+      SnackBar(
+        content: Text(
+          context.tr(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      ),
     );
   }
 
@@ -153,7 +158,7 @@ class _PronunciationState extends State<Pronunciation> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           IconButton(
-            tooltip: _speaking ? '停止朗读' : '朗读英文',
+            tooltip: _speaking ? context.tr('停止朗读') : context.tr('朗读英文'),
             visualDensity: widget.visualDensity,
             onPressed: _speak,
             icon: Icon(
@@ -165,16 +170,16 @@ class _PronunciationState extends State<Pronunciation> {
             if (_phonetic != null)
               SelectableText(_phonetic!, style: const TextStyle(fontSize: 13))
             else if (_loading)
-              const Text(
-                '音标查询中…',
+              Text(
+                context.tr('音标查询中…'),
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               )
             else
               Tooltip(
-                message: _lookupError ?? '音标来自在线词典',
+                message: context.tr(_lookupError ?? '音标来自在线词典'),
                 child: TextButton(
                   onPressed: _lookup,
-                  child: const Text('音标暂不可用，重试'),
+                  child: Text(context.tr('音标暂不可用，重试')),
                 ),
               ),
         ],

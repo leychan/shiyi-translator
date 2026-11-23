@@ -7,6 +7,8 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'app_controller.dart';
 import 'app_identity.dart';
+import 'interface_text.dart';
+import 'models.dart';
 import 'popup.dart';
 import 'services/desktop_service.dart';
 import 'services/instance_service.dart';
@@ -98,7 +100,11 @@ Future<void> main(List<String> arguments) async {
         home: Scaffold(
           body: Center(
             child: SelectableText(
-              '无法启动$appName。\n请检查应用数据目录权限，或稍后重试。\n错误类型：${error.runtimeType}',
+              interfaceText(
+                resolveInterfaceLocale(InterfaceLanguage.system),
+                '无法启动$appName。\n请检查应用数据目录权限，或稍后重试。\n错误类型：{value}',
+                error.runtimeType,
+              ),
             ),
           ),
         ),

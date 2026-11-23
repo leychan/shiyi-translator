@@ -4,6 +4,9 @@
 #ifndef NDEBUG
 #include <cstdint>
 #endif
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#endif
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
@@ -48,6 +51,22 @@ static void inspect_surface(FlMethodChannel*, FlMethodCall* call, gpointer data)
   fl_value_set_string_take(response, "visualDepth", fl_value_new_int(gdk_visual_get_depth(gtk_widget_get_visual(window))));
   cairo_surface_destroy(surface);
   fl_method_call_respond_success(call, response, nullptr);
+}
+#endif
+
+#ifdef GDK_WINDOWING_WAYLAND
+static void queue_view_allocation(GtkWidget* widget, gpointer) {
+  gtk_widget_queue_allocate(widget);
+  if (GTK_IS_CONTAINER(widget)) {
+    gtk_container_forall(GTK_CONTAINER(widget), queue_view_allocation, nullptr);
+  }
+}
+
+static gboolean refresh_view_on_map(GtkWidget*, GdkEvent*, GtkWidget* view) {
+  // On remap, GTK creates the Wayland surface after mapping the Flutter view.
+  // Reallocate its renderer too, since unchanged window bounds skip allocation.
+  queue_view_allocation(view, nullptr);
+  return FALSE;
 }
 #endif
 
@@ -112,6 +131,12 @@ static void my_application_activate(GApplication* application) {
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));
+#ifdef GDK_WINDOWING_WAYLAND
+  if (GDK_IS_WAYLAND_DISPLAY(gtk_widget_get_display(GTK_WIDGET(window)))) {
+    g_signal_connect_object(window, "map-event", G_CALLBACK(refresh_view_on_map),
+                            view, G_CONNECT_AFTER);
+  }
+#endif
 
   // Dart/window_manager owns presentation. In particular, a cold --selection
   // launch must keep the management window hidden while opening the popup.

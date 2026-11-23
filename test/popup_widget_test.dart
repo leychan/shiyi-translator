@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_translator/app_controller.dart';
 import 'package:just_translator/models.dart';
@@ -64,7 +65,7 @@ void main() {
       final window = MeasuringPopupWindow();
       addTearDown(app.dispose);
       addTearDown(window.dispose);
-      app.input = 'Hello';
+      app.input = 'Hello there.';
       final result = TranslationResult(provider: provider())
         ..text = '你好'
         ..status = ResultStatus.complete;
@@ -146,7 +147,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final app = AppController(
-      settings: AppSettings(darkMode: true),
+      settings: AppSettings(
+        darkMode: true,
+        interfaceLanguage: InterfaceLanguage.en,
+      ),
       store: MemoryStore(),
     );
     addTearDown(app.dispose);
@@ -154,6 +158,11 @@ void main() {
     await tester.pumpWidget(PopupApp(controller: app));
     await tester.pump();
     expect(find.byKey(const Key('popup-translate')), findsOneWidget);
+    expect(find.text('Restart'), findsOneWidget);
+    app.settings.interfaceLanguage = InterfaceLanguage.zh;
+    app.settingsChanged();
+    await tester.pump();
+    expect(find.text('重新翻译'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -169,6 +178,9 @@ void main() {
       addTearDown(app.dispose);
       await tester.pumpWidget(
         MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: const [Locale('zh')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           home: Scaffold(
             body: ProviderDialog(
               controller: app,

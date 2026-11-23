@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_controller.dart';
 import 'app_identity.dart';
+import 'interface_text.dart';
 import 'models.dart';
 import 'widgets/pronunciation.dart';
 import 'services/desktop_service.dart';
@@ -24,8 +25,8 @@ class TranslatorApp extends StatelessWidget {
     builder: (context, _) => MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
-      locale: const Locale('zh'),
-      supportedLocales: const [Locale('zh'), Locale('en')],
+      locale: controller.settings.interfaceLanguage.locale,
+      supportedLocales: interfaceLocales,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
@@ -94,12 +95,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final TextEditingController _input;
   AppController get app => widget.controller;
-  static const _titles = ['翻译', '翻译服务', '历史记录', '偏好设置'];
+  static const _titles = ['翻译', '翻译服务', '历史记录', '偏好设置', '关于'];
   static const _icons = [
     Icons.translate_rounded,
     Icons.widgets_outlined,
     Icons.history_rounded,
     Icons.tune_rounded,
+    Icons.info_outline_rounded,
   ];
   @override
   void initState() {
@@ -166,6 +168,7 @@ class _HomePageState extends State<HomePage> {
                           0 => _translator(),
                           1 => _providers(),
                           2 => _history(),
+                          4 => _about(),
                           _ => _settings(),
                         },
                       ),
@@ -225,7 +228,7 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         const SizedBox(height: 42),
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < _titles.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Material(
@@ -249,13 +252,16 @@ class _HomePageState extends State<HomePage> {
                         color: app.page == i ? accent : Colors.grey,
                       ),
                       const SizedBox(width: 14),
-                      Text(
-                        _titles[i],
-                        style: TextStyle(
-                          color: app.page == i ? accent : null,
-                          fontWeight: app.page == i
-                              ? FontWeight.w700
-                              : FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          context.tr(_titles[i]),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: app.page == i ? accent : null,
+                            fontWeight: app.page == i
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -274,23 +280,30 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.keyboard_command_key_rounded,
                     size: 15,
                     color: accent,
                   ),
-                  SizedBox(width: 7),
-                  Text(
-                    '随选随译',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      context.tr('随选随译'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                widget.desktop?.shortcutStatus ?? 'Ctrl + Alt + Space',
+                context.tr(
+                  widget.desktop?.shortcutStatus ?? 'Ctrl + Alt + Space',
+                ),
                 style: const TextStyle(
                   fontSize: 11,
                   height: 1.6,
@@ -299,16 +312,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 18),
-        const Text(
-          '  少一点隔阂，多一点理解。',
-          style: TextStyle(fontSize: 10, color: Colors.grey),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          '  VERSION $appVersion',
-          style: TextStyle(fontSize: 9, color: Colors.grey, letterSpacing: 1.8),
         ),
       ],
     ),
@@ -324,29 +327,35 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _titles[app.page],
+                context.tr(_titles[app.page]),
                 style: const TextStyle(
                   fontSize: 25,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -.6,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                [
-                  '跨越语言，保持原意。',
-                  '连接你喜欢的服务，让译文多一个视角。',
-                  '让每一次理解，都有迹可循。',
-                  '按你的习惯，调整每一个细节。',
-                ][app.page],
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+              if (app.page != 4) ...[
+                const SizedBox(height: 6),
+                Text(
+                  context.tr(
+                    [
+                      '跨越语言，保持原意。',
+                      '连接你喜欢的服务，让译文多一个视角。',
+                      '让每一次理解，都有迹可循。',
+                      '按你的习惯，调整每一个细节。',
+                    ][app.page],
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
             ],
           ),
         ),
         if (widget.desktop != null) ...[
           IconButton(
-            tooltip: widget.desktop!.pinned ? '取消置顶' : '窗口置顶',
+            tooltip: widget.desktop!.pinned
+                ? context.tr('取消置顶')
+                : context.tr('窗口置顶'),
             onPressed: () => widget.desktop!.togglePinned(),
             icon: Icon(
               widget.desktop!.pinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -355,7 +364,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           IconButton(
-            tooltip: '打开翻译弹窗',
+            tooltip: context.tr('打开翻译弹窗'),
             onPressed: () => widget.desktop!.openPopup(),
             icon: const Icon(Icons.picture_in_picture_alt_rounded, size: 20),
           ),
@@ -368,12 +377,15 @@ class _HomePageState extends State<HomePage> {
     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
     child: Row(
       children: [
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < _titles.length; i++)
           Expanded(
             child: TextButton.icon(
               onPressed: () => app.goTo(i),
               icon: Icon(_icons[i], size: 17),
-              label: Text(_titles[i], style: const TextStyle(fontSize: 12)),
+              label: Text(
+                context.tr(_titles[i]),
+                style: const TextStyle(fontSize: 12),
+              ),
               style: TextButton.styleFrom(
                 foregroundColor: app.page == i ? accent : Colors.grey,
               ),
@@ -395,7 +407,10 @@ class _HomePageState extends State<HomePage> {
         const Icon(Icons.info_outline, size: 18),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(app.notice!, style: const TextStyle(fontSize: 12)),
+          child: Text(
+            localizeNotice(context, app.notice!),
+            style: const TextStyle(fontSize: 12),
+          ),
         ),
         IconButton(
           onPressed: app.clearMessage,
@@ -427,13 +442,16 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 9),
                 Expanded(
                   child: Text(
-                    '${app.enabledProviders.length} 个服务已启用',
+                    context.tr('{value} 个服务已启用', app.enabledProviders.length),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ),
                 TextButton(
                   onPressed: () => app.goTo(1),
-                  child: const Text('管理服务', style: TextStyle(fontSize: 12)),
+                  child: Text(
+                    context.tr('管理服务'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -478,7 +496,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               Expanded(child: _languageDropdown(app.settings.source, true)),
               IconButton(
-                tooltip: '交换语言',
+                tooltip: context.tr('交换语言'),
                 onPressed: () {
                   if (app.settings.source == 'auto') {
                     app.message('先选择原文语言，再交换翻译方向。');
@@ -511,7 +529,7 @@ class _HomePageState extends State<HomePage> {
             textAlignVertical: TextAlignVertical.top,
             style: TextStyle(fontSize: compact ? 14 : 17, height: 1.85),
             decoration: InputDecoration(
-              hintText: '输入文字，开始理解另一种语言…',
+              hintText: context.tr('输入文字，开始理解另一种语言…'),
               hintStyle: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF9B9CAE),
@@ -538,7 +556,7 @@ class _HomePageState extends State<HomePage> {
           child: Row(
             children: [
               IconButton(
-                tooltip: '粘贴文字',
+                tooltip: context.tr('粘贴文字'),
                 visualDensity: compact
                     ? VisualDensity.compact
                     : VisualDensity.standard,
@@ -550,7 +568,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               IconButton(
-                tooltip: '清空原文',
+                tooltip: context.tr('清空原文'),
                 visualDensity: compact
                     ? VisualDensity.compact
                     : VisualDensity.standard,
@@ -567,7 +585,7 @@ class _HomePageState extends State<HomePage> {
               const Spacer(),
               Flexible(
                 child: Text(
-                  app.captureLabel,
+                  context.tr(app.captureLabel),
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
@@ -597,7 +615,10 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               if (app.busy)
-                TextButton(onPressed: app.cancel, child: const Text('停止')),
+                TextButton(
+                  onPressed: app.cancel,
+                  child: Text(context.tr('停止')),
+                ),
               if (compact) const Spacer(),
               FilledButton.icon(
                 key: const Key('translate-button'),
@@ -611,7 +632,7 @@ class _HomePageState extends State<HomePage> {
                     : null,
                 onPressed: () => app.translate(),
                 icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                label: Text(app.busy ? '重新翻译' : '翻译'),
+                label: Text(app.busy ? context.tr('重新翻译') : context.tr('翻译')),
               ),
             ],
           ),
@@ -637,7 +658,7 @@ class _HomePageState extends State<HomePage> {
               .map(
                 (entry) => DropdownMenuItem(
                   value: entry.key,
-                  child: Text(entry.value),
+                  child: Text(context.tr(entry.value)),
                 ),
               )
               .toList(),
@@ -678,15 +699,15 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  '让不同的语言，彼此靠近',
+                Text(
+                  context.tr('让不同的语言，彼此靠近'),
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   app.enabledProviders.isEmpty
-                      ? '添加一个翻译服务，就可以开始了。'
-                      : '译文将显示在这里。\n多个服务的结果会分别呈现。',
+                      ? context.tr('添加一个翻译服务，就可以开始了。')
+                      : context.tr('译文将显示在这里。\n多个服务的结果会分别呈现。'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 12,
@@ -699,7 +720,7 @@ class _HomePageState extends State<HomePage> {
                   OutlinedButton.icon(
                     onPressed: () => _editProvider(),
                     icon: const Icon(Icons.add, size: 17),
-                    label: const Text('添加翻译服务'),
+                    label: Text(context.tr('添加翻译服务')),
                   ),
               ],
             ),
@@ -743,13 +764,13 @@ class _HomePageState extends State<HomePage> {
               if (result.status == ResultStatus.complete)
                 Text(
                   result.cached
-                      ? '缓存'
+                      ? context.tr('缓存')
                       : '${(result.elapsed.inMilliseconds / 1000).toStringAsFixed(1)}s',
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               const SizedBox(width: 6),
               IconButton(
-                tooltip: '复制译文',
+                tooltip: context.tr('复制译文'),
                 onPressed: result.text.isEmpty
                     ? null
                     : () => _copy(result.text),
@@ -766,16 +787,16 @@ class _HomePageState extends State<HomePage> {
               style: const TextStyle(fontSize: 16, height: 1.9),
             ),
           if (result.status == ResultStatus.loading && result.text.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 20),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
               child: Text(
-                '正在翻译…',
+                context.tr('正在翻译…'),
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ),
           if (result.error != null)
             Text(
-              result.error!,
+              localizeNotice(context, result.error!),
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.error,
@@ -783,8 +804,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           if (result.status == ResultStatus.cancelled)
-            const Text(
-              '已停止',
+            Text(
+              context.tr('已停止'),
               style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
         ],
@@ -811,18 +832,21 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       _serviceTag(
                         Icons.layers_outlined,
-                        '${app.settings.providers.length} 个服务',
+                        context.tr(
+                          '{value} 个服务',
+                          app.settings.providers.length,
+                        ),
                       ),
                       _serviceTag(
                         Icons.check_circle_outline_rounded,
-                        '${app.enabledProviders.length} 个启用',
+                        context.tr('{value} 个启用', app.enabledProviders.length),
                         highlighted: true,
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '拖动卡片左侧手柄调整顺序，译文将按此排列。',
+                    context.tr('拖动卡片左侧手柄调整顺序，译文将按此排列。'),
                     style: TextStyle(fontSize: 12, color: muted),
                   ),
                 ],
@@ -838,7 +862,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               icon: const Icon(Icons.add_rounded, size: 19),
-              label: const Text('添加服务', style: TextStyle(fontSize: 13)),
+              label: Text(context.tr('添加服务'), style: TextStyle(fontSize: 13)),
             ),
           ],
         ),
@@ -850,13 +874,13 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    '连接你的第一个服务',
+                  Text(
+                    context.tr('连接你的第一个服务'),
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '选择接口类型，填入自己的配置，即可开始翻译。',
+                    context.tr('选择接口类型，填入自己的配置，即可开始翻译。'),
                     style: TextStyle(fontSize: 12, color: muted, height: 1.6),
                   ),
                   const SizedBox(height: 22),
@@ -897,7 +921,7 @@ class _HomePageState extends State<HomePage> {
                                             Text(
                                               kind == ProviderKind.compatible
                                                   ? 'Chat Completions'
-                                                  : kind.label,
+                                                  : context.tr(kind.label),
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
@@ -907,13 +931,21 @@ class _HomePageState extends State<HomePage> {
                                             Text(
                                               switch (kind) {
                                                 ProviderKind.compatible =>
-                                                  '兼容接口 · 自定义模型与流式译文',
+                                                  context.tr(
+                                                    '兼容接口 · 自定义模型与流式译文',
+                                                  ),
                                                 ProviderKind.deepl =>
-                                                  '专业翻译 · 支持 Free / Pro',
+                                                  context.tr(
+                                                    '专业翻译 · 支持 Free / Pro',
+                                                  ),
                                                 ProviderKind.libreTranslate =>
-                                                  '自由部署 · 连接自己的翻译实例',
+                                                  context.tr(
+                                                    '自由部署 · 连接自己的翻译实例',
+                                                  ),
                                                 ProviderKind.baidu =>
-                                                  '百度翻译 · APP ID 与密钥接入',
+                                                  context.tr(
+                                                    '百度翻译 · APP ID 与密钥接入',
+                                                  ),
                                               },
                                               style: TextStyle(
                                                 fontSize: 11,
@@ -955,7 +987,7 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '每个接口可添加多个配置，密钥通过系统凭据存储保护。',
+                context.tr('每个接口可添加多个配置，密钥通过系统凭据存储保护。'),
                 style: TextStyle(fontSize: 11, color: muted, height: 1.6),
               ),
             ),
@@ -1025,20 +1057,20 @@ class _HomePageState extends State<HomePage> {
         _serviceTag(
           Icons.hub_outlined,
           provider.kind == ProviderKind.compatible
-              ? '兼容接口'
-              : provider.kind.label,
+              ? context.tr('兼容接口')
+              : context.tr(provider.kind.label),
         ),
         if (provider.model.isNotEmpty)
           _serviceTag(Icons.auto_awesome_outlined, provider.model),
         if (provider.hasApiKey)
-          _serviceTag(Icons.lock_outline_rounded, '已配置密钥'),
+          _serviceTag(Icons.lock_outline_rounded, context.tr('已配置密钥')),
       ],
     );
     final actions = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Tooltip(
-          message: '编辑服务',
+          message: context.tr('编辑服务'),
           child: OutlinedButton.icon(
             onPressed: () => _editProvider(provider: provider),
             style: OutlinedButton.styleFrom(
@@ -1049,12 +1081,12 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             icon: const Icon(Icons.tune_rounded, size: 16),
-            label: const Text('编辑', style: TextStyle(fontSize: 12)),
+            label: Text(context.tr('编辑'), style: const TextStyle(fontSize: 12)),
           ),
         ),
         const SizedBox(width: 4),
         IconButton(
-          tooltip: '删除服务',
+          tooltip: context.tr('删除服务'),
           onPressed: () => _removeProvider(provider),
           icon: Icon(Icons.delete_outline_rounded, size: 19, color: muted),
         ),
@@ -1072,11 +1104,11 @@ class _HomePageState extends State<HomePage> {
                   key: ValueKey('provider-drag-${provider.id}'),
                   index: index,
                   child: Tooltip(
-                    message: '拖拽调整顺序',
+                    message: context.tr('拖拽调整顺序'),
                     child: MouseRegion(
                       cursor: SystemMouseCursors.grab,
                       child: Semantics(
-                        label: '调整${provider.name}的顺序',
+                        label: context.tr('调整{value}的顺序', provider.name),
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(0, 10, 12, 10),
                           child: Icon(
@@ -1106,7 +1138,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        provider.enabled ? '已启用 · 参与并行翻译' : '已暂停 · 保留当前配置',
+                        provider.enabled
+                            ? context.tr('已启用 · 参与并行翻译')
+                            : context.tr('已暂停 · 保留当前配置'),
                         style: TextStyle(
                           fontSize: 11,
                           color: provider.enabled ? colors.primary : muted,
@@ -1116,7 +1150,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 Tooltip(
-                  message: provider.enabled ? '停用服务' : '启用服务',
+                  message: provider.enabled
+                      ? context.tr('停用服务')
+                      : context.tr('启用服务'),
                   child: Switch(
                     value: provider.enabled,
                     onChanged: (enabled) =>
@@ -1156,26 +1192,26 @@ class _HomePageState extends State<HomePage> {
         children: [
           Expanded(
             child: Text(
-              '最近 ${app.settings.history.length} 条记录',
+              context.tr('最近 {value} 条记录', app.settings.history.length),
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
           TextButton.icon(
             onPressed: app.settings.history.isEmpty ? null : _clearHistory,
             icon: const Icon(Icons.delete_outline, size: 17),
-            label: const Text('清空历史'),
+            label: Text(context.tr('清空历史')),
           ),
         ],
       ),
       const SizedBox(height: 14),
       Expanded(
         child: app.settings.history.isEmpty
-            ? const Surface(
+            ? Surface(
                 child: Center(
                   child: Text(
-                    '还没有翻译记录。\n完成的翻译会保存在这里。',
+                    context.tr('还没有翻译记录。\n完成的翻译会保存在这里。'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, height: 2),
+                    style: const TextStyle(color: Colors.grey, height: 2),
                   ),
                 ),
               )
@@ -1196,7 +1232,8 @@ class _HomePageState extends State<HomePage> {
                             Row(
                               children: [
                                 Text(
-                                  '${languages[entry.source]} → ${languages[entry.target]}',
+                                  '${context.tr(languages[entry.source] ?? entry.source)} → '
+                                  '${context.tr(languages[entry.target] ?? entry.target)}',
                                   style: const TextStyle(
                                     color: accent,
                                     fontSize: 11,
@@ -1242,25 +1279,40 @@ class _HomePageState extends State<HomePage> {
     ],
   );
 
+  // Keep the theme and language selectors visually consistent.
+  TextStyle get _settingsDropdownStyle => TextStyle(
+    fontSize: 14,
+    color: Theme.of(context).colorScheme.onSurface,
+  );
+
   Widget _settings() => ListView(
     children: [
-      _section('外观与窗口', [
+      _section(context.tr('外观与窗口'), [
         ListTile(
-          title: const Text('主题模式', style: TextStyle(fontSize: 14)),
-          subtitle: const Text('可随系统自动切换外观', style: TextStyle(fontSize: 11)),
+          title: Text(context.tr('主题模式'), style: TextStyle(fontSize: 14)),
+          subtitle: Text(
+            context.tr('可随系统自动切换外观'),
+            style: TextStyle(fontSize: 11),
+          ),
           trailing: DropdownButtonHideUnderline(
             child: DropdownButton<ThemeMode>(
               key: const Key('theme-mode'),
               value: app.settings.themeMode,
               borderRadius: BorderRadius.circular(12),
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              items: const [
-                DropdownMenuItem(value: ThemeMode.system, child: Text('跟随系统')),
-                DropdownMenuItem(value: ThemeMode.light, child: Text('浅色')),
-                DropdownMenuItem(value: ThemeMode.dark, child: Text('深色')),
+              style: _settingsDropdownStyle,
+              items: [
+                DropdownMenuItem(
+                  value: ThemeMode.system,
+                  child: Text(context.tr('跟随系统')),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.light,
+                  child: Text(context.tr('浅色')),
+                ),
+                DropdownMenuItem(
+                  value: ThemeMode.dark,
+                  child: Text(context.tr('深色')),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -1271,16 +1323,52 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+        ListTile(
+          title: Text(context.tr('界面语言'), style: const TextStyle(fontSize: 14)),
+          trailing: DropdownButtonHideUnderline(
+            child: DropdownButton<InterfaceLanguage>(
+              key: const Key('interface-language'),
+              value: app.settings.interfaceLanguage,
+              borderRadius: BorderRadius.circular(12),
+              style: _settingsDropdownStyle,
+              items: [
+                DropdownMenuItem(
+                  value: InterfaceLanguage.system,
+                  child: Text(context.tr('跟随系统')),
+                ),
+                const DropdownMenuItem(
+                  value: InterfaceLanguage.zh,
+                  child: Text('简体中文'),
+                ),
+                const DropdownMenuItem(
+                  value: InterfaceLanguage.en,
+                  child: Text('English'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null || value == app.settings.interfaceLanguage) {
+                  return;
+                }
+                app.settings.interfaceLanguage = value;
+                app.settingsChanged();
+                unawaited(app.persist());
+                unawaited(widget.desktop?.refreshTrayLanguage());
+              },
+            ),
+          ),
+        ),
       ]),
       const SizedBox(height: 20),
-      _section('启动与后台', [
+      _section(context.tr('启动与后台'), [
         SwitchListTile(
           key: const Key('autostart-toggle'),
-          title: const Text('开机自启动', style: TextStyle(fontSize: 14)),
+          title: Text(context.tr('开机自启动'), style: TextStyle(fontSize: 14)),
           subtitle: Text(
-            widget.desktop?.autostartBusy == true
-                ? '正在更新系统启动设置…'
-                : widget.desktop?.autostartError ?? '登录后自动启动，默认静默驻留托盘',
+            context.tr(
+              widget.desktop?.autostartBusy == true
+                  ? '正在更新系统启动设置…'
+                  : widget.desktop?.autostartError ?? '登录后自动启动，默认静默驻留托盘',
+            ),
             style: const TextStyle(fontSize: 11),
           ),
           value: widget.desktop?.autostartEnabled ?? false,
@@ -1290,9 +1378,9 @@ class _HomePageState extends State<HomePage> {
                     unawaited(widget.desktop!.setAutostartEnabled(value)),
         ),
         SwitchListTile(
-          title: const Text('关闭窗口后留在托盘', style: TextStyle(fontSize: 14)),
-          subtitle: const Text(
-            '保持快捷翻译可用，可通过托盘菜单退出',
+          title: Text(context.tr('关闭窗口后留在托盘'), style: TextStyle(fontSize: 14)),
+          subtitle: Text(
+            context.tr('保持快捷翻译可用，可通过托盘菜单退出'),
             style: TextStyle(fontSize: 11),
           ),
           value: app.settings.closeToTray,
@@ -1304,11 +1392,11 @@ class _HomePageState extends State<HomePage> {
         ),
       ]),
       const SizedBox(height: 20),
-      _section('翻译与记录', [
+      _section(context.tr('翻译与记录'), [
         SwitchListTile(
-          title: const Text('保存翻译历史', style: TextStyle(fontSize: 14)),
-          subtitle: const Text(
-            '仅保存在本机，最多保留最近 100 条',
+          title: Text(context.tr('保存翻译历史'), style: TextStyle(fontSize: 14)),
+          subtitle: Text(
+            context.tr('仅保存在本机，最多保留最近 100 条'),
             style: TextStyle(fontSize: 11),
           ),
           value: app.settings.saveHistory,
@@ -1320,24 +1408,28 @@ class _HomePageState extends State<HomePage> {
         ),
       ]),
       const SizedBox(height: 20),
-      _section('快捷翻译', [
+      _section(context.tr('快捷翻译'), [
         ListTile(
-          title: const Text('全局快捷键', style: TextStyle(fontSize: 14)),
+          title: Text(context.tr('全局快捷键'), style: TextStyle(fontSize: 14)),
           subtitle: Text(
-            widget.desktop?.shortcutStatus ?? 'Ctrl + Alt + Space',
+            context.tr(widget.desktop?.shortcutStatus ?? 'Ctrl + Alt + Space'),
             style: const TextStyle(fontSize: 12),
           ),
           trailing: TextButton(
             onPressed: widget.desktop == null || widget.desktop!.registering
                 ? null
                 : widget.desktop!.registerShortcut,
-            child: Text(widget.desktop?.registering == true ? '绑定中…' : '重新绑定'),
+            child: Text(
+              widget.desktop?.registering == true
+                  ? context.tr('绑定中…')
+                  : context.tr('重新绑定'),
+            ),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 14),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
           child: Text(
-            '选中文字后按快捷键翻译。若应用无法提供选区，请先复制文字，再使用剪贴板翻译。',
+            context.tr('选中文字后按快捷键翻译。若应用无法提供选区，请先复制文字，再使用剪贴板翻译。'),
             style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.8),
           ),
         ),
@@ -1347,8 +1439,8 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '也可在系统设置中，为下面的命令分配快捷键：',
+                Text(
+                  context.tr('也可在系统设置中，为下面的命令分配快捷键：'),
                   style: TextStyle(fontSize: 11, color: Colors.grey),
                 ),
                 const SizedBox(height: 8),
@@ -1371,14 +1463,14 @@ class _HomePageState extends State<HomePage> {
                   ? null
                   : () => widget.desktop!.capture(),
               icon: const Icon(Icons.highlight_alt, size: 17),
-              label: const Text('翻译选区'),
+              label: Text(context.tr('翻译选区')),
             ),
             TextButton.icon(
               onPressed: widget.desktop == null
                   ? null
                   : () => widget.desktop!.capture(clipboard: true),
               icon: const Icon(Icons.content_paste, size: 17),
-              label: const Text('翻译剪贴板'),
+              label: Text(context.tr('翻译剪贴板')),
             ),
           ],
         ),
@@ -1386,18 +1478,61 @@ class _HomePageState extends State<HomePage> {
       const SizedBox(height: 24),
       Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              '$appName $appVersion · $appTagline',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              '$appTitle · ${context.tr(appTagline)}',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
           if (widget.desktop != null)
             TextButton(
               onPressed: widget.desktop!.quit,
-              child: const Text('退出应用'),
+              child: Text(context.tr('退出应用')),
             ),
         ],
+      ),
+    ],
+  );
+
+  Widget _about() => ListView(
+    children: [
+      Surface(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const BrandMark(size: 48),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appTitle,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(context.tr('版本 {value}', appVersion)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(context.tr('拾译是一款桌面翻译工具。选中文字并按下快捷键，就能在附近查看译文。')),
+              const SizedBox(height: 20),
+              Text(
+                context.tr('项目地址'),
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              const SizedBox(height: 6),
+              const SelectableText(appRepository),
+            ],
+          ),
+        ),
       ),
     ],
   );
@@ -1437,7 +1572,10 @@ class _HomePageState extends State<HomePage> {
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('译文已复制'), duration: Duration(seconds: 2)),
+        SnackBar(
+          content: Text(context.tr('译文已复制')),
+          duration: Duration(seconds: 2),
+        ),
       );
     }
   }
@@ -1457,7 +1595,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _removeProvider(ProviderConfig provider) async {
-    if (await _confirm('删除 ${provider.name}？', '将移除这个服务的配置和已保存的 API Key。')) {
+    if (await _confirm(
+      context.tr('删除 {value}？', provider.name),
+      context.tr('将移除这个服务的配置和已保存的 API Key。'),
+    )) {
       try {
         await app.removeProvider(provider.id);
       } catch (_) {
@@ -1467,7 +1608,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _clearHistory() async {
-    if (await _confirm('清空历史记录？', '本机保存的翻译历史和内存缓存将被清空。')) {
+    if (await _confirm(
+      context.tr('清空历史记录？'),
+      context.tr('本机保存的翻译历史和内存缓存将被清空。'),
+    )) {
       await app.clearHistory();
     }
   }
@@ -1481,11 +1625,11 @@ class _HomePageState extends State<HomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('取消'),
+              child: Text(context.tr('取消')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('确定'),
+              child: Text(context.tr('确定')),
             ),
           ],
         ),

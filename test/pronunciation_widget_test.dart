@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_translator/services/pronunciation_service.dart';
 import 'package:just_translator/widgets/pronunciation.dart';
@@ -23,6 +24,9 @@ void main() {
     final service = FakePronunciationService();
     Future<void> show(String text, String language) => tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: const [Locale('zh')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: Scaffold(
           body: Pronunciation(text: text, language: language, service: service),
         ),
@@ -57,6 +61,9 @@ void main() {
     final service = FakePronunciationService();
     Future<void> show(String text) => tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: const [Locale('zh')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: Scaffold(
           body: Pronunciation(text: text, language: 'en', service: service),
         ),

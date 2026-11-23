@@ -1,3 +1,5 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_translator/app_controller.dart';
@@ -46,6 +48,41 @@ void main() {
     for (final channel in [window, tray, screen]) {
       messenger.setMockMethodCallHandler(channel, null);
     }
+  });
+
+  test('tray menu follows the locale and honors a language override', () async {
+    final platform = TestWidgetsFlutterBinding.instance.platformDispatcher;
+    platform.localesTestValue = const [Locale('en', 'US')];
+    addTearDown(platform.clearLocalesTestValue);
+    final app = AppController(settings: AppSettings(), store: MemoryStore());
+    final desktop = DesktopService(
+      app,
+      InstanceService(),
+      autostart: FakeAutostart(),
+      trayAvailable: () async => true,
+    );
+    addTearDown(app.dispose);
+    addTearDown(desktop.dispose);
+    final labels = <String>[];
+    messenger.setMockMethodCallHandler(tray, (call) async {
+      if (call.method == 'setContextMenu') {
+        final arguments = call.arguments as Map;
+        final items = (arguments['menu'] as Map)['items'] as List;
+        labels.add((items.first as Map)['label'] as String);
+      }
+      return true;
+    });
+
+    await desktop.initialize(bindShortcut: false, showMain: false);
+    expect(labels, ['Open Shiyi Translator']);
+
+    platform.localesTestValue = const [Locale('zh', 'CN')];
+    await desktop.refreshTrayLanguage();
+    expect(labels.last, '打开拾译');
+
+    app.settings.interfaceLanguage = InterfaceLanguage.en;
+    await desktop.refreshTrayLanguage();
+    expect(labels.last, 'Open Shiyi Translator');
   });
 
   test(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_controller.dart';
+import '../interface_text.dart';
 import '../models.dart';
 import '../services/translation_service.dart';
 
@@ -184,7 +185,9 @@ class _ProviderDialogState extends State<ProviderDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.provider == null ? '添加翻译服务' : '编辑翻译服务',
+                              widget.provider == null
+                                  ? context.tr('添加翻译服务')
+                                  : context.tr('编辑翻译服务'),
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
@@ -193,14 +196,14 @@ class _ProviderDialogState extends State<ProviderDialog> {
                             ),
                             const SizedBox(height: 5),
                             Text(
-                              '配置你的接口，让翻译更合心意',
+                              context.tr('配置你的接口，让翻译更合心意'),
                               style: TextStyle(fontSize: 12, color: _muted),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        tooltip: '关闭',
+                        tooltip: context.tr('关闭'),
                         onPressed: _saving
                             ? null
                             : () => Navigator.pop(context),
@@ -223,30 +226,33 @@ class _ProviderDialogState extends State<ProviderDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _sectionHeading('基本信息', '便于在多个服务之间辨认'),
+                            _sectionHeading(
+                              context.tr('基本信息'),
+                              context.tr('便于在多个服务之间辨认'),
+                            ),
                             const SizedBox(height: 14),
                             _fieldRow(
                               _field(
-                                '显示名称',
+                                context.tr('显示名称'),
                                 TextFormField(
                                   key: const Key('provider-name'),
                                   controller: _name,
                                   onChanged: _configurationChanged,
                                   enabled: !_saving,
                                   style: const TextStyle(fontSize: 13),
-                                  decoration: const InputDecoration(
-                                    hintText: '例如：我的翻译助手',
+                                  decoration: InputDecoration(
+                                    hintText: context.tr('例如：我的翻译助手'),
                                   ),
                                   validator: (value) =>
                                       !_validatingTest &&
                                           (value == null ||
                                               value.trim().isEmpty)
-                                      ? '请为这个服务取一个名字'
+                                      ? context.tr('请为这个服务取一个名字')
                                       : null,
                                 ),
                               ),
                               _field(
-                                '接口类型',
+                                context.tr('接口类型'),
                                 DropdownButtonFormField<ProviderKind>(
                                   key: const Key('provider-kind'),
                                   initialValue: _kind,
@@ -265,7 +271,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
                                         (kind) => DropdownMenuItem(
                                           value: kind,
                                           child: Text(
-                                            kind.label,
+                                            context.tr(kind.label),
                                             style: TextStyle(color: _ink),
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -297,10 +303,13 @@ class _ProviderDialogState extends State<ProviderDialog> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  _sectionHeading('连接设置', '按服务商提供的信息填写'),
+                                  _sectionHeading(
+                                    context.tr('连接设置'),
+                                    context.tr('按服务商提供的信息填写'),
+                                  ),
                                   const SizedBox(height: 14),
                                   _field(
-                                    '服务地址',
+                                    context.tr('服务地址'),
                                     TextFormField(
                                       key: const Key('provider-endpoint'),
                                       controller: _endpoint,
@@ -330,7 +339,9 @@ class _ProviderDialogState extends State<ProviderDialog> {
                                             uri.userInfo.isNotEmpty ||
                                             uri.hasQuery ||
                                             uri.hasFragment) {
-                                          return '请输入 HTTP(S) 地址，不包含密钥或查询参数';
+                                          return context.tr(
+                                            '请输入 HTTP(S) 地址，不包含密钥或查询参数',
+                                          );
                                         }
                                         return null;
                                       },
@@ -354,19 +365,22 @@ class _ProviderDialogState extends State<ProviderDialog> {
                                                 style: const TextStyle(
                                                   fontSize: 13,
                                                 ),
-                                                decoration:
-                                                    const InputDecoration(
-                                                      hintText: '百度翻译应用 ID',
-                                                    ),
+                                                decoration: InputDecoration(
+                                                  hintText: context.tr(
+                                                    '百度翻译应用 ID',
+                                                  ),
+                                                ),
                                                 validator: (value) =>
                                                     value == null ||
                                                         value.trim().isEmpty
-                                                    ? '请填写百度翻译 APP ID'
+                                                    ? context.tr(
+                                                        '请填写百度翻译 APP ID',
+                                                      )
                                                     : null,
                                               ),
                                             )
                                           : _field(
-                                              '模型名称',
+                                              context.tr('模型名称'),
                                               TextFormField(
                                                 key: const Key(
                                                   'provider-model',
@@ -378,14 +392,15 @@ class _ProviderDialogState extends State<ProviderDialog> {
                                                 style: const TextStyle(
                                                   fontSize: 13,
                                                 ),
-                                                decoration:
-                                                    const InputDecoration(
-                                                      hintText: '填写模型 ID',
-                                                    ),
+                                                decoration: InputDecoration(
+                                                  hintText: context.tr(
+                                                    '填写模型 ID',
+                                                  ),
+                                                ),
                                                 validator: (value) =>
                                                     value == null ||
                                                         value.trim().isEmpty
-                                                    ? '请填写模型名称'
+                                                    ? context.tr('请填写模型名称')
                                                     : null,
                                               ),
                                             ),
@@ -422,8 +437,8 @@ class _ProviderDialogState extends State<ProviderDialog> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            '流式显示译文',
+                                          Text(
+                                            context.tr('流式显示译文'),
                                             style: TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
@@ -431,7 +446,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '边生成边显示，不支持时可关闭',
+                                            context.tr('边生成边显示，不支持时可关闭'),
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: _muted,
@@ -458,7 +473,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
                             if (_error != null) ...[
                               const SizedBox(height: 12),
                               Text(
-                                _error!,
+                                context.tr(_error!),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: theme.colorScheme.error,
@@ -526,7 +541,10 @@ class _ProviderDialogState extends State<ProviderDialog> {
             ),
             if (optional) ...[
               const SizedBox(width: 6),
-              Text('可选', style: TextStyle(fontSize: 10, color: _muted)),
+              Text(
+                context.tr('可选'),
+                style: TextStyle(fontSize: 10, color: _muted),
+              ),
             ],
           ],
         ),
@@ -552,7 +570,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
   );
 
   Widget _keyField() => _field(
-    _kind == ProviderKind.baidu ? '密钥（Secret Key）' : 'API Key',
+    _kind == ProviderKind.baidu ? context.tr('密钥（Secret Key）') : 'API Key',
     TextFormField(
       key: const Key('provider-api-key'),
       controller: _apiKey,
@@ -564,12 +582,12 @@ class _ProviderDialogState extends State<ProviderDialog> {
       style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: _loading
-            ? '正在读取密钥…'
+            ? context.tr('正在读取密钥…')
             : _kind == ProviderKind.baidu || _kind == ProviderKind.deepl
-            ? '填写服务密钥'
-            : '按服务要求填写',
+            ? context.tr('填写服务密钥')
+            : context.tr('按服务要求填写'),
         suffixIcon: IconButton(
-          tooltip: _obscure ? '显示密钥' : '隐藏密钥',
+          tooltip: _obscure ? context.tr('显示密钥') : context.tr('隐藏密钥'),
           onPressed: () => setState(() {
             _obscure = !_obscure;
           }),
@@ -585,7 +603,9 @@ class _ProviderDialogState extends State<ProviderDialog> {
       validator: (value) =>
           (_kind == ProviderKind.deepl || _kind == ProviderKind.baidu) &&
               (value?.trim().isEmpty ?? true)
-          ? (_kind == ProviderKind.baidu ? '请填写百度翻译密钥' : 'DeepL 需要 API Key')
+          ? (_kind == ProviderKind.baidu
+                ? context.tr('请填写百度翻译密钥')
+                : context.tr('DeepL 需要 API Key'))
           : null,
     ),
     optional:
@@ -608,7 +628,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
                   Icon(Icons.shield_outlined, size: 15, color: _muted),
                   const SizedBox(width: 6),
                   Text(
-                    '密钥仅保存在本机',
+                    context.tr('密钥仅保存在本机'),
                     style: TextStyle(fontSize: 11, color: _muted),
                   ),
                 ],
@@ -618,7 +638,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
             const Spacer(),
           TextButton(
             onPressed: _saving ? null : () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(context.tr('取消')),
           ),
           const SizedBox(width: 8),
           OutlinedButton.icon(
@@ -637,7 +657,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
               size: 17,
             ),
             label: Text(
-              _testing ? '取消测试' : '测试连接',
+              _testing ? context.tr('取消测试') : context.tr('测试连接'),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -655,7 +675,7 @@ class _ProviderDialogState extends State<ProviderDialog> {
             ),
             icon: const Icon(Icons.check_rounded, size: 17),
             label: Text(
-              _saving ? '正在保存…' : '保存服务',
+              _saving ? context.tr('正在保存…') : context.tr('保存服务'),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -709,12 +729,12 @@ class _ProviderDialogState extends State<ProviderDialog> {
               Expanded(
                 child: Text(
                   _testing
-                      ? '正在测试…'
+                      ? context.tr('正在测试…')
                       : hasResult
                       ? success
-                            ? '测试成功'
-                            : '测试失败'
-                      : '连接验证',
+                            ? context.tr('测试成功')
+                            : context.tr('测试失败')
+                      : context.tr('连接验证'),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -724,7 +744,10 @@ class _ProviderDialogState extends State<ProviderDialog> {
               ),
               if (_testElapsed != null)
                 Text(
-                  '${(_testElapsed!.inMilliseconds / 1000).toStringAsFixed(1)} 秒',
+                  context.tr(
+                    '{value} 秒',
+                    (_testElapsed!.inMilliseconds / 1000).toStringAsFixed(1),
+                  ),
                   style: TextStyle(fontSize: 11, color: _muted),
                 ),
             ],
@@ -735,14 +758,16 @@ class _ProviderDialogState extends State<ProviderDialog> {
               constraints: const BoxConstraints(maxHeight: 100),
               child: SingleChildScrollView(
                 child: SelectableText(
-                  _testError ?? _testTranslation!,
+                  _testError == null
+                      ? _testTranslation!
+                      : localizeNotice(context, _testError!),
                   style: TextStyle(fontSize: 12, height: 1.6, color: _ink),
                 ),
               ),
             )
           else
             Text(
-              '使用 Hello, world! 验证配置，无需先保存。',
+              context.tr('使用 Hello, world! 验证配置，无需先保存。'),
               style: TextStyle(fontSize: 11, color: _muted, height: 1.6),
             ),
         ],

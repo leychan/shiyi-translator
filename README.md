@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A Flutter desktop translator for Linux, Windows, and macOS. Current version: 0.3.7. Validation currently focuses on KDE Wayland.
+A Flutter desktop translator for Linux, Windows, and macOS. Current version: 0.3.8. Validation currently focuses on KDE Wayland.
 
 ## About the name
 
@@ -32,6 +32,20 @@ The application and desktop menu use “拾译 / Shiyi Translator”. The intern
 - Single-instance operation and `--selection` / `--clipboard` commands for desktop shortcuts.
 
 This version does not include OCR, automatic floating buttons after text selection, no-focus popups, a third-party plugin marketplace, or cloud sync.
+
+## Screenshots
+
+### Main translation window
+
+![Shiyi Translator with the source text on the left and translation results on the right](docs/screenshots/en-main.png)
+
+### Add a translation service
+
+![Add translation service dialog with the API type menu open](docs/screenshots/en-add-service.png)
+
+### Selected text translation popup
+
+![Popup showing the selected English word, its pronunciation, and results from two services](docs/screenshots/en-selection-popup.png)
 
 ## Development requirements
 
@@ -146,13 +160,13 @@ Linux packaging produces both `.deb` and Arch `.pkg.tar.zst` installers for x86_
 On Ubuntu, run from the download directory, substituting the actual package version:
 
 ```bash
-sudo apt install ./shiyi-translator_0.3.7-11_amd64.deb
+sudo apt install ./shiyi-translator_0.3.8-12_amd64.deb
 ```
 
 On Arch Linux:
 
 ```bash
-sudo pacman -U ./shiyi-translator-0.3.7-11-x86_64.pkg.tar.zst
+sudo pacman -U ./shiyi-translator-0.3.8-12-x86_64.pkg.tar.zst
 ```
 
 Once the first AUR release is published, you can also install it with an AUR helper such as `yay -S shiyi-translator-bin`.
@@ -165,7 +179,7 @@ Package an existing local build:
 python3 tools/package-linux.py
 ```
 
-Packaging requires Python 3, `dpkg-deb`, `bsdtar`, `zstd`, and `readelf`. On Ubuntu, install the `dpkg`, `libarchive-tools`, `zstd`, and `binutils` packages. On Arch, install `dpkg`, `libarchive`, `zstd`, and `binutils`. Output goes into `dist/`. The version comes from `pubspec.yaml`; for example, `0.3.7+11` becomes package version `0.3.7-11`.
+Packaging requires Python 3, `dpkg-deb`, `bsdtar`, `zstd`, and `readelf`. On Ubuntu, install the `dpkg`, `libarchive-tools`, `zstd`, and `binutils` packages. On Arch, install `dpkg`, `libarchive`, `zstd`, and `binutils`. Output goes into `dist/`. The version comes from `pubspec.yaml`; for example, `0.3.8+12` becomes package version `0.3.8-12`.
 
 Packages scan the build output to declare the minimum glibc version. Build on a system old enough for your intended targets. The release workflow builds on Ubuntu 22.04; packages built locally on Arch are not guaranteed to run on Ubuntu 22.04. Check the dependencies declared in the package.
 
@@ -173,11 +187,11 @@ Packages scan the build output to declare the minimum glibc version. Build on a 
 
 Pushing a `v*` version tag triggers static analysis and tests, followed by Linux, Windows, and macOS builds. After all three platforms succeed, the workflow creates the corresponding GitHub Release, generates release notes, and uploads the packages. The release becomes public after uploading. Rerunning the same tag keeps the public Arch asset available at the checksum used by AUR and updates the other assets with matching names.
 
-Before publishing, update the version in `pubspec.yaml`, commit and push the code, then tag that commit. For example, for version `0.3.7+11`:
+Before publishing, update the version in `pubspec.yaml`, commit and push the code, then tag that commit. For example, for version `0.3.8+12`:
 
 ```bash
-git tag v0.3.7
-git push origin v0.3.7
+git tag v0.3.8
+git push origin v0.3.8
 ```
 
 Release assets include `shiyi-translator-linux-x64.tar.gz`, `shiyi-translator-windows-x64.zip`, and `shiyi-translator-macos.zip`. Linux also includes `shiyi-translator_VERSION-BUILD_amd64.deb` and `shiyi-translator-VERSION-BUILD-x86_64.pkg.tar.zst`. For the `.tar.gz` package, keep the complete `bundle` directory and install `espeak-ng` separately. Windows and macOS currently ship unsigned application archives.
@@ -190,7 +204,7 @@ After GitHub publishes a tagged release in `leychan/shiyi-translator`, the workf
 
 For the one-time setup, add a dedicated SSH public key to the AUR account that can publish `shiyi-translator-bin`. Save the corresponding passphrase-free private key as the `AUR_SSH_PRIVATE_KEY` repository secret under **Settings → Secrets and variables → Actions**. The first successful run creates the AUR package if the name is available. If the AUR job fails after GitHub publishes the release, fix the cause and rerun the failed job. See the [AUR submission guidelines](https://wiki.archlinux.org/title/AUR_submission_guidelines).
 
-To send an existing GitHub Release to AUR, push an `aur/vX.Y.Z` tag pointing to a commit with this workflow. For example, `git push origin HEAD:refs/tags/aur/v0.3.7` publishes the Arch installer from GitHub Release `v0.3.7` to AUR.
+To send an existing GitHub Release to AUR, push an `aur/vX.Y.Z` tag pointing to a commit with this workflow. For example, `git push origin HEAD:refs/tags/aur/v0.3.8` publishes the Arch installer from GitHub Release `v0.3.8` to AUR.
 
 ## Data storage
 

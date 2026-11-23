@@ -105,7 +105,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final store = MemoryStore();
-    final app = AppController(settings: AppSettings(), store: store);
+    final app = AppController(
+      settings: AppSettings(interfaceLanguage: InterfaceLanguage.zh),
+      store: store,
+    );
     addTearDown(app.dispose);
     app.goTo(3);
     await tester.pumpWidget(TranslatorApp(controller: app));

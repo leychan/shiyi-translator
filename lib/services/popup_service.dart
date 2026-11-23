@@ -71,6 +71,7 @@ class PopupService {
       'target': main.settings.target,
       'darkMode': main.settings.darkMode,
       'themeMode': main.settings.themeMode.name,
+      'interfaceLanguage': main.settings.interfaceLanguage.name,
     },
     'results': controller.orderedResults.map((r) => r.toJson()).toList(),
   };
@@ -301,6 +302,7 @@ class RemotePopupController extends AppController {
     );
     settings.providers = latest.providers;
     settings.themeMode = latest.themeMode;
+    settings.interfaceLanguage = latest.interfaceLanguage;
     if (_pendingSettings == 0 || newCapture) {
       settings.source = latest.source;
       settings.target = latest.target;

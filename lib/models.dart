@@ -1,4 +1,15 @@
-import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/material.dart' show Locale, ThemeMode;
+
+enum InterfaceLanguage {
+  system(null),
+  zh(Locale('zh')),
+  en(Locale('en'));
+
+  const InterfaceLanguage(this.locale);
+
+  // Flutter resolves a null locale from the system's language preferences.
+  final Locale? locale;
+}
 
 enum ProviderKind { compatible, deepl, libreTranslate, baidu }
 
@@ -181,6 +192,7 @@ class AppSettings {
     this.target = 'zh',
     ThemeMode? themeMode,
     bool? darkMode,
+    this.interfaceLanguage = InterfaceLanguage.system,
     this.saveHistory = true,
     this.closeToTray = true,
   }) : themeMode =
@@ -195,6 +207,7 @@ class AppSettings {
   String source;
   String target;
   ThemeMode themeMode;
+  InterfaceLanguage interfaceLanguage;
 
   // Keep older callers compatible; assigning a bool selects an explicit theme.
   bool get darkMode => themeMode == ThemeMode.dark;
@@ -211,6 +224,7 @@ class AppSettings {
     'target': target,
     'darkMode': darkMode,
     'themeMode': themeMode.name,
+    'interfaceLanguage': interfaceLanguage.name,
     'saveHistory': saveHistory,
     'closeToTray': closeToTray,
   };
@@ -238,6 +252,11 @@ class AppSettings {
       _ => null,
     },
     darkMode: json['darkMode'] as bool?,
+    interfaceLanguage: switch (json['interfaceLanguage']) {
+      'zh' => InterfaceLanguage.zh,
+      'en' => InterfaceLanguage.en,
+      _ => InterfaceLanguage.system,
+    },
     saveHistory: json['saveHistory'] as bool? ?? true,
     closeToTray: json['closeToTray'] as bool? ?? true,
   );

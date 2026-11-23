@@ -455,7 +455,7 @@ void main() {
       final boundaryKey = GlobalKey();
       final store = MemoryStore();
       final app = AppController(
-        settings: AppSettings(),
+        settings: AppSettings(interfaceLanguage: InterfaceLanguage.zh),
         store: store,
         translator: FixtureTranslator(),
       );

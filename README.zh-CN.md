@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.7，优先在 KDE Wayland 上验证。
+Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版本 0.3.8，优先在 KDE Wayland 上验证。
 
 ## 名字的含义
 
@@ -32,6 +32,20 @@ Flutter 桌面翻译工具，目标平台为 Linux、Windows、macOS。当前版
 - 单实例运行；`--selection` / `--clipboard` 可由系统快捷键调用。
 
 这一版不包含 OCR、鼠标划词后自动弹按钮、无焦点弹窗、第三方插件市场或云同步。
+
+## 截图示例
+
+### 翻译主界面
+
+![拾译主窗口，左侧输入原文，右侧显示译文](docs/screenshots/zh-CN-main.png)
+
+### 添加翻译服务
+
+![添加翻译服务窗口，展开接口类型选单](docs/screenshots/zh-CN-add-service.png)
+
+### 划词翻译弹窗
+
+![选中英文单词后，弹窗显示音标和两个翻译服务的译文](docs/screenshots/zh-CN-selection-popup.png)
 
 ## 环境
 
@@ -146,13 +160,13 @@ Linux 构建会同时提供 `.deb` 和 Arch 的 `.pkg.tar.zst` 安装包（x86_6
 Ubuntu 在下载目录执行（版本号以实际文件名为准）：
 
 ```bash
-sudo apt install ./shiyi-translator_0.3.7-11_amd64.deb
+sudo apt install ./shiyi-translator_0.3.8-12_amd64.deb
 ```
 
 Arch Linux 执行：
 
 ```bash
-sudo pacman -U ./shiyi-translator-0.3.7-11-x86_64.pkg.tar.zst
+sudo pacman -U ./shiyi-translator-0.3.8-12-x86_64.pkg.tar.zst
 ```
 
 AUR 首次发布后，也可以用 `yay -S shiyi-translator-bin` 安装。
@@ -165,7 +179,7 @@ AUR 首次发布后，也可以用 `yay -S shiyi-translator-bin` 安装。
 python3 tools/package-linux.py
 ```
 
-需要 Python 3、`dpkg-deb`、`bsdtar`、`zstd` 和 `readelf`。Ubuntu 上对应工具包为 `dpkg`、`libarchive-tools`、`zstd`、`binutils`；Arch 上为 `dpkg`、`libarchive`、`zstd`、`binutils`。输出目录为 `dist/`，版本取自 `pubspec.yaml`，例如 `0.3.7+11` 对应包版本 `0.3.7-11`。
+需要 Python 3、`dpkg-deb`、`bsdtar`、`zstd` 和 `readelf`。Ubuntu 上对应工具包为 `dpkg`、`libarchive-tools`、`zstd`、`binutils`；Arch 上为 `dpkg`、`libarchive`、`zstd`、`binutils`。输出目录为 `dist/`，版本取自 `pubspec.yaml`，例如 `0.3.8+12` 对应包版本 `0.3.8-12`。
 
 安装包会扫描构建产物，声明最低 glibc 版本；请在目标系统足够旧的构建环境中编译。发布流程使用 Ubuntu 22.04 构建；在 Arch 本机构建的包不保证支持 Ubuntu 22.04，应以包内依赖为准。
 
@@ -173,11 +187,11 @@ python3 tools/package-linux.py
 
 推送 `v*` 版本标签时，GitHub Actions 会先执行静态检查和测试，再分别构建 Linux、Windows、macOS。三个平台全部构建成功后，自动创建对应的 GitHub Release，生成发布说明并上传压缩包，上传完成后公开发布。重新运行同一标签时，会保留已公开的 Arch 安装包供 AUR 校验，并更新其他同名附件。
 
-发布前先更新 `pubspec.yaml` 中的版本号，提交并推送代码，再为该提交创建对应标签。例如版本为 `0.3.7+11` 时：
+发布前先更新 `pubspec.yaml` 中的版本号，提交并推送代码，再为该提交创建对应标签。例如版本为 `0.3.8+12` 时：
 
 ```bash
-git tag v0.3.7
-git push origin v0.3.7
+git tag v0.3.8
+git push origin v0.3.8
 ```
 
 Release 附件为 `shiyi-translator-linux-x64.tar.gz`、`shiyi-translator-windows-x64.zip`、`shiyi-translator-macos.zip`。Linux 另提供 `shiyi-translator_版本-构建号_amd64.deb` 和 `shiyi-translator-版本-构建号-x86_64.pkg.tar.zst`，随 Release 一并上传。使用 `.tar.gz` 时需携带完整 `bundle` 目录运行，并另行安装 `espeak-ng`。Windows、macOS 当前提供未签名的应用压缩包。
@@ -190,7 +204,7 @@ Release 附件为 `shiyi-translator-linux-x64.tar.gz`、`shiyi-translator-window
 
 首次配置时，在有权发布 `shiyi-translator-bin` 的 AUR 账号中添加专用 SSH 公钥。然后在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中，将对应的无口令私钥保存为 `AUR_SSH_PRIVATE_KEY`。如果包名可用，首次成功运行会创建 AUR 包。若 GitHub Release 已发布而 AUR 步骤失败，修复原因后可单独重跑失败任务。参见 [AUR 提交指南](https://wiki.archlinux.org/title/AUR_submission_guidelines)。
 
-要用已有的 GitHub Release 补发 AUR，把包含此工作流的提交推送为 `aur/vX.Y.Z` 标签。例如 `git push origin HEAD:refs/tags/aur/v0.3.7` 会将 GitHub Release `v0.3.7` 里的 Arch 安装包发布到 AUR。
+要用已有的 GitHub Release 补发 AUR，把包含此工作流的提交推送为 `aur/vX.Y.Z` 标签。例如 `git push origin HEAD:refs/tags/aur/v0.3.8` 会将 GitHub Release `v0.3.8` 里的 Arch 安装包发布到 AUR。
 
 ## 数据
 

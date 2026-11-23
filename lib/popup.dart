@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'app_controller.dart';
 import 'app_identity.dart';
+import 'interface_text.dart';
 import 'models.dart';
 import 'widgets/pronunciation.dart';
 import 'popup_placement.dart';
@@ -31,7 +32,7 @@ class PopupWindow extends ChangeNotifier with WindowListener {
     windowManager.addListener(this);
     await windowManager.waitUntilReadyToShow(
       const WindowOptions(
-        title: '$appName · 翻译',
+        title: appTitle,
         size: Size(480, 360),
         minimumSize: Size(360, 160),
         center: false,
@@ -205,10 +206,10 @@ class PopupApp extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) => MaterialApp(
-      title: '$appName · 翻译',
+      onGenerateTitle: (context) => context.tr('$appName · 翻译'),
       debugShowCheckedModeBanner: false,
-      locale: const Locale('zh'),
-      supportedLocales: const [Locale('zh'), Locale('en')],
+      locale: controller.settings.interfaceLanguage.locale,
+      supportedLocales: interfaceLocales,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: TranslatorApp.buildTheme(Brightness.light),
       darkTheme: TranslatorApp.buildTheme(Brightness.dark),
@@ -342,8 +343,8 @@ class _TranslationPopupState extends State<TranslationPopup> {
                       children: [
                         IconButton(
                           tooltip: widget.window?.pinned == true
-                              ? '取消置顶'
-                              : '置顶弹窗',
+                              ? context.tr('取消置顶')
+                              : context.tr('置顶弹窗'),
                           onPressed: widget.window?.togglePin,
                           icon: Icon(
                             widget.window?.pinned == true
@@ -357,7 +358,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
                         ),
                         const Spacer(),
                         IconButton(
-                          tooltip: '翻译服务设置',
+                          tooltip: context.tr('翻译服务设置'),
                           onPressed: widget.openSettings,
                           icon: const Icon(
                             Icons.tune_rounded,
@@ -367,7 +368,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
                         ),
                         IconButton(
                           key: const Key('popup-close'),
-                          tooltip: '关闭弹窗',
+                          tooltip: context.tr('关闭弹窗'),
                           onPressed: widget.window?.hide,
                           icon: const Icon(
                             Icons.cancel_rounded,
@@ -410,7 +411,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          app.notice!,
+                                          localizeNotice(context, app.notice!),
                                           style: TextStyle(
                                             fontSize: 12,
                                             height: 1.6,
@@ -463,8 +464,8 @@ class _TranslationPopupState extends State<TranslationPopup> {
           maxLines: 5,
           onChanged: (value) => app.setInput(value, from: '手动输入'),
           style: const TextStyle(fontSize: 18, height: 1.6),
-          decoration: const InputDecoration(
-            hintText: '选取或输入需要翻译的文字…',
+          decoration: InputDecoration(
+            hintText: context.tr('选取或输入需要翻译的文字…'),
             hintStyle: TextStyle(fontSize: 15, color: Colors.grey),
             filled: false,
             contentPadding: EdgeInsets.fromLTRB(16, 15, 16, 4),
@@ -480,42 +481,50 @@ class _TranslationPopupState extends State<TranslationPopup> {
           child: Row(
             children: [
               IconButton(
-                tooltip: '复制原文',
+                tooltip: context.tr('复制原文'),
                 onPressed: app.input.isEmpty ? null : () => _copy(app.input),
                 icon: const Icon(Icons.copy_outlined, size: 18),
               ),
               IconButton(
-                tooltip: '粘贴原文',
+                tooltip: context.tr('粘贴原文'),
                 onPressed: _paste,
                 icon: const Icon(Icons.content_paste_rounded, size: 18),
               ),
               IconButton(
-                tooltip: '清空原文',
+                tooltip: context.tr('清空原文'),
                 onPressed: () {
                   app.cancel();
                   app.setInput('');
                 },
                 icon: const Icon(Icons.backspace_outlined, size: 18),
               ),
-              const Spacer(),
               if (app.busy)
                 IconButton(
-                  tooltip: '停止翻译',
+                  tooltip: context.tr('停止翻译'),
                   onPressed: app.cancel,
                   icon: const Icon(Icons.stop_circle_outlined, size: 20),
                 ),
-              FilledButton.icon(
-                key: const Key('popup-translate'),
-                onPressed: () => app.translate(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF3578E5),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    key: const Key('popup-translate'),
+                    onPressed: () => app.translate(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF3578E5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                    icon: const Icon(Icons.translate_rounded, size: 16),
+                    label: Text(
+                      context.tr(app.busy ? '重新翻译' : '翻译'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
-                icon: const Icon(Icons.translate_rounded, size: 16),
-                label: Text(app.busy ? '重新翻译' : '翻译'),
               ),
             ],
           ),
@@ -526,12 +535,12 @@ class _TranslationPopupState extends State<TranslationPopup> {
             children: [
               Expanded(
                 child: Text(
-                  app.captureLabel,
+                  context.tr(app.captureLabel),
                   style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               ),
               Text(
-                '${app.input.length} 字符',
+                context.tr('{value} 字符', app.input.length),
                 style: const TextStyle(fontSize: 10, color: Colors.grey),
               ),
             ],
@@ -551,7 +560,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
       children: [
         Expanded(child: _language(true)),
         IconButton(
-          tooltip: '交换语言',
+          tooltip: context.tr('交换语言'),
           onPressed: () {
             if (app.settings.source == 'auto') {
               app.message('先选择原文语言，再交换翻译方向。');
@@ -581,7 +590,10 @@ class _TranslationPopupState extends State<TranslationPopup> {
           .map(
             (entry) => DropdownMenuItem(
               value: entry.key,
-              child: Text(entry.value, style: const TextStyle(fontSize: 13)),
+              child: Text(
+                context.tr(entry.value),
+                style: const TextStyle(fontSize: 13),
+              ),
             ),
           )
           .toList(),
@@ -606,15 +618,15 @@ class _TranslationPopupState extends State<TranslationPopup> {
         const SizedBox(height: 16),
         Text(
           app.enabledProviders.isEmpty
-              ? '添加翻译服务后，即可在这里查看译文。'
-              : '选中文字后按快捷键，或直接输入文字翻译。',
+              ? context.tr('添加翻译服务后，即可在这里查看译文。')
+              : context.tr('选中文字后按快捷键，或直接输入文字翻译。'),
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, height: 1.8, color: Colors.grey),
         ),
         if (app.enabledProviders.isEmpty)
           TextButton(
             onPressed: widget.openSettings,
-            child: const Text('添加翻译服务'),
+            child: Text(context.tr('添加翻译服务')),
           ),
       ],
     ),
@@ -664,7 +676,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
                   if (result.status == ResultStatus.complete)
                     Text(
                       result.cached
-                          ? '缓存'
+                          ? context.tr('缓存')
                           : '${(result.elapsed.inMilliseconds / 1000).toStringAsFixed(1)}s',
                       style: const TextStyle(fontSize: 10, color: Colors.grey),
                     ),
@@ -692,7 +704,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
                     ),
                   if (result.error != null)
                     Text(
-                      result.error!,
+                      localizeNotice(context, result.error!),
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.7,
@@ -701,13 +713,13 @@ class _TranslationPopupState extends State<TranslationPopup> {
                     ),
                   if (result.status == ResultStatus.loading &&
                       result.text.isEmpty)
-                    const Text(
-                      '正在翻译…',
+                    Text(
+                      context.tr('正在翻译…'),
                       style: TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                   if (result.status == ResultStatus.cancelled)
-                    const Text(
-                      '已停止',
+                    Text(
+                      context.tr('已停止'),
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   if (result.status == ResultStatus.complete)
@@ -715,7 +727,7 @@ class _TranslationPopupState extends State<TranslationPopup> {
                   Row(
                     children: [
                       IconButton(
-                        tooltip: '复制译文',
+                        tooltip: context.tr('复制译文'),
                         onPressed: result.text.isEmpty
                             ? null
                             : () => _copy(result.text),
@@ -736,7 +748,10 @@ class _TranslationPopupState extends State<TranslationPopup> {
     await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已复制'), duration: Duration(seconds: 1)),
+        SnackBar(
+          content: Text(context.tr('已复制')),
+          duration: Duration(seconds: 1),
+        ),
       );
     }
   }

@@ -7,6 +7,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../app_controller.dart';
 import '../app_identity.dart';
+import '../interface_text.dart';
 import 'autostart_service.dart';
 import 'instance_service.dart';
 import 'linux_tray_status.dart';
@@ -14,7 +15,8 @@ import 'selection_service.dart';
 import 'shortcut_service.dart';
 import 'popup_service.dart';
 
-class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
+class DesktopService extends ChangeNotifier
+    with WindowListener, TrayListener, WidgetsBindingObserver {
   DesktopService(
     this.controller,
     this.instance, {
@@ -45,6 +47,7 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   final Future<bool> Function() _trayAvailable;
   Timer? _trayMonitor;
   bool _trayCreated = false;
+  Locale? _trayLocale;
   Future<void>? _checkingTray;
   bool autostartEnabled = false;
   bool autostartBusy = false;
@@ -61,6 +64,7 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     bool bindShortcut = true,
     bool showMain = true,
   }) async {
+    WidgetsBinding.instance.addObserver(this);
     windowManager.addListener(this);
     trayManager.addListener(this);
     await windowManager.waitUntilReadyToShow(
@@ -109,17 +113,34 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     if (!Platform.isLinux) {
       await trayManager.setToolTip(appTitle);
     }
+    await _setTrayMenu(
+      resolveInterfaceLocale(controller.settings.interfaceLanguage),
+    );
+  }
+
+  Future<void> _setTrayMenu(Locale locale) async {
     await trayManager.setContextMenu(
       Menu(
         items: [
-          MenuItem(key: 'show', label: '打开$appName'),
-          MenuItem(key: 'selection', label: '翻译选中文字'),
-          MenuItem(key: 'clipboard', label: '翻译剪贴板'),
+          MenuItem(key: 'show', label: interfaceText(locale, '打开$appName')),
+          MenuItem(key: 'selection', label: interfaceText(locale, '翻译选中文字')),
+          MenuItem(key: 'clipboard', label: interfaceText(locale, '翻译剪贴板')),
           MenuItem.separator(),
-          MenuItem(key: 'exit', label: '退出$appName'),
+          MenuItem(key: 'exit', label: interfaceText(locale, '退出$appName')),
         ],
       ),
     );
+    _trayLocale = locale;
+  }
+
+  Future<void> refreshTrayLanguage() async {
+    // Let a pending tray check finish before updating the menu it created.
+    await _checkingTray;
+    if (trayReady &&
+        _trayLocale !=
+            resolveInterfaceLocale(controller.settings.interfaceLanguage)) {
+      await refreshTray();
+    }
   }
 
   Future<void> _refreshTray() async {
@@ -128,6 +149,12 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
     try {
       if (_trayCreated && await _trayAvailable()) {
         trayReady = true;
+        final locale = resolveInterfaceLocale(
+          controller.settings.interfaceLanguage,
+        );
+        if (!_disposed && !_quitting && locale != _trayLocale) {
+          await _setTrayMenu(locale);
+        }
       } else {
         trayReady = false;
         if (wasReady) await _showTrayWarning();
@@ -301,6 +328,11 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
   }
 
   @override
+  void didChangeLocales(List<Locale>? locales) {
+    unawaited(refreshTrayLanguage());
+  }
+
+  @override
   void onWindowFocus() {
     unawaited(refreshAutostart());
   }
@@ -341,6 +373,7 @@ class DesktopService extends ChangeNotifier with WindowListener, TrayListener {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _disposed = true;
     _trayMonitor?.cancel();
     windowManager.removeListener(this);

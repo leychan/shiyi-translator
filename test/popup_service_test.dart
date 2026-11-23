@@ -56,8 +56,10 @@ void main() {
       );
       await remote.start();
       expect(remote.settings.themeMode, main.settings.themeMode);
+      expect(remote.settings.interfaceLanguage, InterfaceLanguage.system);
       expect(remote.results.map((r) => r.provider.id), ['one', 'two']);
       remote.setInput('keep this local draft');
+      main.settings.interfaceLanguage = InterfaceLanguage.en;
       await main.reorderProviders(0, 1);
       final deadline = DateTime.now().add(const Duration(seconds: 2));
       while (remote.results.first.provider.id != 'two' &&
@@ -65,6 +67,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 30));
       }
       expect(remote.results.map((r) => r.provider.id), ['two', 'one']);
+      expect(remote.settings.interfaceLanguage, InterfaceLanguage.en);
       expect(remote.results.map((r) => r.text), ['译文 two', '译文 one']);
       expect(remote.input, 'keep this local draft');
       expect(popup.controller.input, 'hello');

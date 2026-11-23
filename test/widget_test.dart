@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_translator/app.dart';
 import 'package:just_translator/app_controller.dart';
+import 'package:just_translator/app_identity.dart';
 import 'package:just_translator/models.dart';
 
 import 'support.dart';
@@ -75,7 +76,10 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final app = AppController(settings: AppSettings(), store: MemoryStore());
+    final app = AppController(
+      settings: AppSettings(interfaceLanguage: InterfaceLanguage.zh),
+      store: MemoryStore(),
+    );
     addTearDown(app.dispose);
     await tester.pumpWidget(TranslatorApp(controller: app));
     await tester.pumpAndSettle();
@@ -97,6 +101,81 @@ void main() {
     expect(find.text('跟随系统'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'About and settings follow the system and honor saved overrides',
+    (tester) async {
+      tester.view.physicalSize = const Size(600, 540);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final platform = tester.binding.platformDispatcher;
+      platform.localesTestValue = const [Locale('zh', 'CN')];
+      addTearDown(platform.clearLocalesTestValue);
+      final store = MemoryStore();
+      final app = AppController(
+        settings: AppSettings.fromJson({}),
+        store: store,
+      );
+      addTearDown(app.dispose);
+      await tester.pumpWidget(TranslatorApp(controller: app));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('关于'));
+      await tester.pumpAndSettle();
+      expect(find.text('版本 $appVersion'), findsOneWidget);
+      expect(find.text(appRepository), findsOneWidget);
+
+      platform.localesTestValue = const [Locale('fr', 'FR')];
+      await tester.pumpAndSettle();
+      expect(find.text('Version $appVersion'), findsOneWidget);
+
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      final languageMenu = find.byKey(const Key('interface-language'));
+      final themeDropdown = tester.widget<DropdownButton<ThemeMode>>(
+        find.byKey(const Key('theme-mode')),
+      );
+      expect(
+        tester.widget<DropdownButton<InterfaceLanguage>>(languageMenu).style,
+        themeDropdown.style,
+      );
+      await tester.tap(languageMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('简体中文').last);
+      await tester.pumpAndSettle();
+      expect(find.text('界面语言'), findsOneWidget);
+      expect(
+        AppSettings.fromJson(store.settings.toJson()).interfaceLanguage,
+        InterfaceLanguage.zh,
+      );
+
+      await tester.tap(languageMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('English').last);
+      await tester.pumpAndSettle();
+      platform.localesTestValue = const [Locale('zh', 'CN')];
+      await tester.pumpAndSettle();
+      expect(find.text('Interface language'), findsOneWidget);
+      expect(store.settings.toJson()['interfaceLanguage'], 'en');
+
+      await tester.tap(languageMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Follow system').last);
+      await tester.pumpAndSettle();
+      expect(find.text('界面语言'), findsOneWidget);
+      expect(store.settings.toJson()['interfaceLanguage'], 'system');
+
+      tester.view.physicalSize = const Size(1024, 540);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('关于'));
+      await tester.pumpAndSettle();
+      expect(find.text('版本 $appVersion'), findsOneWidget);
+      platform.localesTestValue = const [Locale('en', 'US')];
+      await tester.pumpAndSettle();
+      expect(find.text('Version $appVersion'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'minimum window size has no layout overflow in light and dark mode',
